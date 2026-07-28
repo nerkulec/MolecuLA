@@ -1,0 +1,8 @@
+field,value
+unit,"seed and alpha point, summarized per seed then across 50 seeds"
+sides,negative and positive alpha evaluated separately
+matched_seed_similarity,"For each residual-direction point whose seed similarity lies within that seed/side raw-direction range, choose the raw point with the smallest absolute seed-similarity difference; report residual minus raw signed property effect."
+matched_property_change,"For each residual-direction point whose signed raw-property effect lies within that seed/side raw-direction range, choose the raw point with the smallest absolute effect difference; report residual minus raw seed similarity."
+interpolation,none; closest observed point on the common alpha grid
+additional_threshold,none
+scope,all cached valid points; no trust-region filtering

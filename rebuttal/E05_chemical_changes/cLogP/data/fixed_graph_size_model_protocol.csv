@@ -1,0 +1,15 @@
+field,value
+carbon_count_definition,number of atoms with atomic number 6
+cross_fitting,"KFold(n_splits=5, shuffle=True, random_state=42)"
+final_model_use,refit once on all training rows and held fixed while scoring existing decoded raw and residual cLogP trajectories
+interpretation,Sensitivity to a specified linear graph-size model; it does not remove all possible chemical or nonlinear confounding.
+model,StandardScaler + LinearRegression
+nuisance_features,MolWt; CarbonCount; HeavyAtomCount
+oof_training_r2,0.6475230919928974
+raw_scale_intercept,-0.1557177297280763
+target,cLogP
+training_rows,635522
+training_scope,fixed training partition only
+raw_scale_coefficient_CarbonCount,0.48669136546921
+raw_scale_coefficient_HeavyAtomCount,-0.5008352669503202
+raw_scale_coefficient_MolWt,0.01989138748449413

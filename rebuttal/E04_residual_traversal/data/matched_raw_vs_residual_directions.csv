@@ -1,0 +1,25 @@
+property,side,comparison,median_difference_residual_minus_raw,q25_difference,q75_difference,evaluable_seed_count,matched_residual_points,interpretation
+FractionCSP3,negative,matched_seed_similarity,0.0,0.0,0.010684320684320674,50,2450,property effect advantage at matched seed similarity
+FractionCSP3,negative,matched_property_change,0.010293321748814269,0.0,0.033100585382389656,50,2429,seed similarity advantage at matched property effect
+FractionCSP3,positive,matched_seed_similarity,-0.06937451437451445,-0.10841525857654885,-0.015679938019475953,50,2421,property effect advantage at matched seed similarity
+FractionCSP3,positive,matched_property_change,-0.006244161955859164,-0.023439904255247626,0.0,50,2430,seed similarity advantage at matched property effect
+HBA,negative,matched_seed_similarity,0.0,0.0,0.0,50,2446,property effect advantage at matched seed similarity
+HBA,negative,matched_property_change,0.01952407083563867,0.000496031746031746,0.06702138917527933,50,2497,seed similarity advantage at matched property effect
+HBA,positive,matched_seed_similarity,-2.0,-4.0,-0.125,50,2477,property effect advantage at matched seed similarity
+HBA,positive,matched_property_change,-0.007446703931520736,-0.06718141274100575,0.0,50,2382,seed similarity advantage at matched property effect
+TPSA,negative,matched_seed_similarity,0.0,0.0,0.0,50,2407,property effect advantage at matched seed similarity
+TPSA,negative,matched_property_change,0.007368647779258792,0.0,0.020594375607133605,50,2471,seed similarity advantage at matched property effect
+TPSA,positive,matched_seed_similarity,-1.0625000000000142,-36.239999999999945,0.0,50,2441,property effect advantage at matched seed similarity
+TPSA,positive,matched_property_change,0.0,-0.006464015255218615,0.0,50,2350,seed similarity advantage at matched property effect
+cLogP,negative,matched_seed_similarity,0.34864999999999813,0.0,0.7601449999999982,50,2474,property effect advantage at matched seed similarity
+cLogP,negative,matched_property_change,0.0,0.0,0.007905657200274738,50,1694,seed similarity advantage at matched property effect
+cLogP,positive,matched_seed_similarity,-0.19920000000000004,-1.3060699999999916,0.0,50,2440,property effect advantage at matched seed similarity
+cLogP,positive,matched_property_change,0.0,-0.012805592173181465,0.0,50,2392,seed similarity advantage at matched property effect
+BertzCT,negative,matched_seed_similarity,-209.2977366117304,-267.45034991116563,-100.63603006373253,50,2454,property effect advantage at matched seed similarity
+BertzCT,negative,matched_property_change,-0.05205836590592378,-0.1246606243081269,-0.011073509944465973,50,2218,seed similarity advantage at matched property effect
+BertzCT,positive,matched_seed_similarity,-169.35821956675557,-422.9075497579976,0.0,50,2433,property effect advantage at matched seed similarity
+BertzCT,positive,matched_property_change,0.0,-0.021812652756503726,0.0,50,2180,seed similarity advantage at matched property effect
+HeavyAtomCount,negative,matched_seed_similarity,-6.0,-8.75,-3.0,50,2492,property effect advantage at matched seed similarity
+HeavyAtomCount,negative,matched_property_change,-0.07667743486035744,-0.19941111190147756,-0.020647415848923746,50,2263,seed similarity advantage at matched property effect
+HeavyAtomCount,positive,matched_seed_similarity,-6.0,-10.0,-2.0,50,2459,property effect advantage at matched seed similarity
+HeavyAtomCount,positive,matched_property_change,-0.09349476085853448,-0.2470531351796698,-0.0014487292915617723,50,2301,seed similarity advantage at matched property effect

@@ -1,0 +1,7 @@
+denominator_definition,is_primary,threshold,fingerprint_novel_fraction,number_novel,denominator,wilson_95_low,wilson_95_high,number_with_train_neighbor_ge_threshold
+unique valid canonical generated structures,True,0.7,0.9975918121613486,4971,4983,0.9957951684799856,0.9986218469694533,12
+unique valid canonical generated structures,True,0.8,0.998394541440899,4975,4983,0.996834979892933,0.9991862574003443,8
+unique valid canonical generated structures,True,0.9,0.9985952237607867,4976,4983,0.9971029401027606,0.9993193526514764,7
+all valid generated samples (sample-weighted auxiliary),False,0.7,0.9976,4988,5000,0.9958094485806921,0.9986265344435872,12
+all valid generated samples (sample-weighted auxiliary),False,0.8,0.9984,4992,5000,0.9968457298408953,0.9991890248602717,8
+all valid generated samples (sample-weighted auxiliary),False,0.9,0.9986,4993,5000,0.9971127802223416,0.9993216673980476,7

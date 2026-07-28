@@ -1,0 +1,4 @@
+threshold,comparison_rule,number_novel,denominator,novel_percent,number_with_training_neighbor_at_or_above_threshold,weighting
+0.7,exact_nearest_tanimoto < threshold,4971,4983,99.75918121613486,12,distinct canonical structure
+0.8,exact_nearest_tanimoto < threshold,4975,4983,99.8394541440899,8,distinct canonical structure
+0.9,exact_nearest_tanimoto < threshold,4976,4983,99.85952237607867,7,distinct canonical structure

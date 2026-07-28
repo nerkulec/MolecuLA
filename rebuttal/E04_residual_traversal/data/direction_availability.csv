@@ -1,0 +1,5 @@
+direction,available,source
+raw property,True,cached physical decodes
+nonlinear-residual property,True,cached physical decodes
+SELFIES length,True,one cached physical control decode shared logically across properties
+random,False,not present in the completed cache; not fabricated

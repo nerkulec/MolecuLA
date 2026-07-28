@@ -1,0 +1,18 @@
+field,value
+canonicalization,"RDKit MolToSmiles(canonical=True,isomericSmiles=True)"
+distinct_valid_canonical_structures,4983
+duplicate_occurrence_excess,17
+fingerprint_type,Morgan
+fpsim2_version,0.7.4
+generated_samples,5000
+nearest_neighbor_source,existing FPSim2 training database and cached exact-nearest result; the VAE was not rerun
+rdkit_version,2025.9.3
+reference_scope,full training partition
+similarity_metric,Tanimoto
+threshold_caveat,"The 0.70, 0.80, and 0.90 cutoffs are reporting conventions for this fingerprint and corpus, not universal chemical novelty thresholds."
+training_rows,635522
+unique_training_structures,632261
+valid_nonempty_canonical_samples,5000
+valid_training_rows,635522
+primary_novelty_weighting,one row per distinct valid canonical generated structure
+secondary_quantile_weighting,both structure-weighted and sample-weighted

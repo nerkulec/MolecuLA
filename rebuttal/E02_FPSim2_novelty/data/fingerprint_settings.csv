@@ -1,0 +1,10 @@
+parameter,value
+fingerprint_type,Morgan
+countSimulation,False
+fpSize,2048
+includeChirality,False
+includeRedundantEnvironments,False
+includeRingMembership,True
+onlyNonzeroInvariants,False
+radius,2
+useBondTypes,True

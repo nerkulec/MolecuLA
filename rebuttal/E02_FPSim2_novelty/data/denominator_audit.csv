@@ -1,0 +1,5 @@
+quantity,count,definition
+generated_decode_rows,5000,all cached prior samples
+valid_nonempty_canonical_samples,5000,RDKit-valid and nonempty canonical SMILES
+distinct_valid_canonical_structures,4983,structure-weighted denominator
+duplicate_occurrence_excess,17,valid sample occurrences beyond one per distinct structure

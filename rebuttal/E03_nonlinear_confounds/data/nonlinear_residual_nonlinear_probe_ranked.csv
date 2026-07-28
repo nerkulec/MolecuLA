@@ -1,0 +1,16 @@
+residualization_kind,probe_kind,property,test_r2_residual_from_confounds
+nonlinear,nonlinear,HeavyAtomCount,0.009067668623654379
+nonlinear,nonlinear,RingCount,0.001695332539815686
+nonlinear,nonlinear,ExactMolWt,0.0010303776294146028
+nonlinear,nonlinear,MolWt,0.0008892142424593574
+nonlinear,nonlinear,FractionCSP3,0.0006135309804753408
+nonlinear,nonlinear,AromaticRingCount,0.0005762531670827631
+nonlinear,nonlinear,NumBridgeheadAtoms,0.00037078313748661884
+nonlinear,nonlinear,BertzCT,0.000293367721245108
+nonlinear,nonlinear,cLogP,0.00020095559442323552
+nonlinear,nonlinear,HBA,0.00016401872310056742
+nonlinear,nonlinear,TPSA,0.00014923245286813103
+nonlinear,nonlinear,QED,8.948589881363489e-05
+nonlinear,nonlinear,NumRotatableBonds,8.716257126484273e-05
+nonlinear,nonlinear,HBD,5.925754196156596e-05
+nonlinear,nonlinear,NumSpiroAtoms,-0.0007099598257942485
