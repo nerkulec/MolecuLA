@@ -1,0 +1,25 @@
+method,property,scale,loaded_from_cache,candidates,decoder_seconds,descriptor_and_identity_seconds
+MolecuLA continuous OLS,FractionCSP3,native_l2,True,1050,21.305512899998572,6.153329199994914
+MolecuLA continuous OLS,FractionCSP3,train_std_unit,True,1050,10.005448600044474,4.4061148999026045
+MolecuLA continuous OLS,HBA,native_l2,True,1050,27.20129619992804,5.928319900063798
+MolecuLA continuous OLS,HBA,train_std_unit,True,1050,9.607317900052294,4.352286499924958
+MolecuLA continuous OLS,TPSA,native_l2,True,1050,26.935250999988057,5.119289099937305
+MolecuLA continuous OLS,TPSA,train_std_unit,True,1050,9.718838599976152,4.330652600037865
+MolecuLA continuous OLS,cLogP,native_l2,True,1050,28.442499099997804,9.432037299964575
+MolecuLA continuous OLS,cLogP,train_std_unit,True,1050,5.0548644999507815,2.102646099985577
+MolecuLA continuous OLS,BertzCT,native_l2,True,1050,13.845759200048631,4.303215799969621
+MolecuLA continuous OLS,BertzCT,train_std_unit,True,1050,3.6636762999696657,2.1353668000083417
+MolecuLA continuous OLS,HeavyAtomCount,native_l2,True,1050,14.128305699909106,6.80643430002965
+MolecuLA continuous OLS,HeavyAtomCount,train_std_unit,True,1050,10.538949700072408,4.577957000001334
+ChemSpacE adapted extreme-SVM,FractionCSP3,native_l2,True,1050,35.457436400000006,57.74529200000688
+ChemSpacE adapted extreme-SVM,FractionCSP3,train_std_unit,True,1050,31.65086690010503,43.33582380006556
+ChemSpacE adapted extreme-SVM,HBA,native_l2,True,1050,27.19448329997249,40.46417789999396
+ChemSpacE adapted extreme-SVM,HBA,train_std_unit,True,1050,26.639814499998465,32.6240338999778
+ChemSpacE adapted extreme-SVM,TPSA,native_l2,True,1050,27.39998659992125,45.20041110005696
+ChemSpacE adapted extreme-SVM,TPSA,train_std_unit,True,1050,26.842822999926284,40.97539010003675
+ChemSpacE adapted extreme-SVM,cLogP,native_l2,True,1050,28.066700299968943,31.293508400092836
+ChemSpacE adapted extreme-SVM,cLogP,train_std_unit,True,1050,15.767581499996597,34.04745579999872
+ChemSpacE adapted extreme-SVM,BertzCT,native_l2,True,1050,33.94044729997404,35.082287700031884
+ChemSpacE adapted extreme-SVM,BertzCT,train_std_unit,True,1050,18.31793029990513,12.933295299997551
+ChemSpacE adapted extreme-SVM,HeavyAtomCount,native_l2,True,1050,14.293634000001475,13.949989199987613
+ChemSpacE adapted extreme-SVM,HeavyAtomCount,train_std_unit,True,1050,17.505203099921346,26.911893300013617

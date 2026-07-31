@@ -1,0 +1,13 @@
+method,property,protocol,labels_inspected_for_ranking,selected_per_class,selected_rows,svm_fit_rows,svm_validation_rows,split_ratio,shuffle_seed,svm_C,fit_accuracy,validation_accuracy,support_vectors,svm_fit_seconds,direction_l2,direction_sha256
+ChemSpacE adapted extreme-SVM,FractionCSP3,paired adaptation; fixed top/bottom 200,635483,200.0,400,280.0,120.0,0.7,42.0,1.0,1.0,1.0,46.0,0.004226800054311752,1.0,6d7268dcc87e6035f85e4460eb46de4659abb26b5fc6a6cfb115fab604777d89
+MolecuLA continuous OLS,FractionCSP3,continuous OLS on all eligible training rows,635483,,635483,,,,,,,,,,1.0,dfaec961a2c49911ae63945980854576532ecc13bcf3acfe1615c3b2776bc496
+ChemSpacE adapted extreme-SVM,HBA,paired adaptation; fixed top/bottom 200,635483,200.0,400,280.0,120.0,0.7,42.0,1.0,1.0,1.0,47.0,0.003494500066153705,1.0,d34c3fc006e0e33896703d8fc32280a8e53336b98a05e757e3d59b1621d22586
+MolecuLA continuous OLS,HBA,continuous OLS on all eligible training rows,635483,,635483,,,,,,,,,,0.9999999999999999,e7c576ffa7cc1077b31ee08468cfdb5b7982133c42cb97ad6d96b49331a9b61e
+ChemSpacE adapted extreme-SVM,TPSA,paired adaptation; fixed top/bottom 200,635483,200.0,400,280.0,120.0,0.7,42.0,1.0,1.0,1.0,51.0,0.0030436000088229775,0.9999999999999999,c3aaed4c2060d22329d1b4e68dc3554a154b10884b6f2871819c195300f41cec
+MolecuLA continuous OLS,TPSA,continuous OLS on all eligible training rows,635483,,635483,,,,,,,,,,1.0,462e080e1c366d44b07d348fe30188ab528359087884d14ef7639ae2c1294e1e
+ChemSpacE adapted extreme-SVM,cLogP,paired adaptation; fixed top/bottom 200,635483,200.0,400,280.0,120.0,0.7,42.0,1.0,1.0,0.9916666666666667,43.0,0.002508800011128187,0.9999999999999999,3d698c9aa6cdd08b59fa03f53810b71df81f0db506c1b997b325045896c1f59d
+MolecuLA continuous OLS,cLogP,continuous OLS on all eligible training rows,635483,,635483,,,,,,,,,,1.0,e56d0f713c66f4da554e0494431a048842d1ae570be4c92d3cf3dee699eaabca
+ChemSpacE adapted extreme-SVM,BertzCT,paired adaptation; fixed top/bottom 200,635483,200.0,400,280.0,120.0,0.7,42.0,1.0,1.0,1.0,48.0,0.0028198000509291887,1.0,9e38fa243e8bc27b7dd6f9511ae98db92872156581b28fef2364e8c7d4a07046
+MolecuLA continuous OLS,BertzCT,continuous OLS on all eligible training rows,635483,,635483,,,,,,,,,,1.0,5e52816889623719542e6ec6da74930fb7513b4360f0e7e0cb95b0238d48784a
+ChemSpacE adapted extreme-SVM,HeavyAtomCount,paired adaptation; fixed top/bottom 200,635483,200.0,400,280.0,120.0,0.7,42.0,1.0,1.0,1.0,46.0,0.0027125999331474304,1.0000000000000002,2ea5c297f136ca85749f505536d0bdf0bbaf64dd86276368a133c38585a79278
+MolecuLA continuous OLS,HeavyAtomCount,continuous OLS on all eligible training rows,635483,,635483,,,,,,,,,,1.0,dfc1318c15b231ca4b6ee60cb2a21aff700210c04ecab867051a1fe46cc91144

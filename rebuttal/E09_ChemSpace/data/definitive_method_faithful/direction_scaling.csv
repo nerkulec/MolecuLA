@@ -1,0 +1,7 @@
+method,property,scale,native_direction_l2,native_direction_train_std_norm,traversal_vector_l2,traversal_vector_train_std_norm,traversal_vector_sha256
+ChemSpacE released-ZINC protocol,FractionCSP3,native_l2,1.0,,1.0,,d5c0587f2c741814e3292eaeae988a003ee25aea4f1e99eaeea3c6d32c013d5a
+ChemSpacE released-ZINC protocol,HBA,native_l2,1.0,,1.0,,7fc731cd31308677223aaa24800fa729f0f00cb015f58b74216a4bb03bbe9004
+ChemSpacE released-ZINC protocol,TPSA,native_l2,1.0,,1.0,,ff3af3cc3069f36e189e0b549b2cae0da105c9fe700df213a92f6ff6fac05cf5
+ChemSpacE released-ZINC protocol,cLogP,native_l2,1.0,,1.0,,dd75a8c7d95735cab81e7a9b4303b1864bfb8c41a2e879037945e43b62810ce2
+ChemSpacE released-ZINC protocol,BertzCT,native_l2,1.0,,1.0,,8664fa311828385cdff460027e0819ad4b22ff439e20d6d78cbae08f0a549c4c
+ChemSpacE released-ZINC protocol,HeavyAtomCount,native_l2,1.0,,1.0,,a5c1b4e9e148e619a17f518d85c214d091f016d32dddfaa6a23b145e05aa988a

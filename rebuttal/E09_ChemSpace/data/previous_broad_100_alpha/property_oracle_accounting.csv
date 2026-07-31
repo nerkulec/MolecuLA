@@ -1,0 +1,13 @@
+method,property,cached_training_labels_consumed,incremental_training_property_oracle_calls,decoded_candidates,descriptor_bundle_attempts,valid_decoded_property_oracle_calls,additional_constrained_design_oracle_calls
+ChemSpacE extreme-SVM,FractionCSP3,400,0,5000,5000,5000,0
+MolecuLA raw OLS (seed-excluded),FractionCSP3,635483,0,5000,5000,5000,0
+ChemSpacE extreme-SVM,HBA,400,0,5000,5000,4991,0
+MolecuLA raw OLS (seed-excluded),HBA,635483,0,5000,5000,4998,0
+ChemSpacE extreme-SVM,TPSA,400,0,5000,5000,5000,0
+MolecuLA raw OLS (seed-excluded),TPSA,635483,0,5000,5000,5000,0
+ChemSpacE extreme-SVM,cLogP,400,0,5000,5000,5000,0
+MolecuLA raw OLS (seed-excluded),cLogP,635483,0,5000,5000,5000,0
+ChemSpacE extreme-SVM,BertzCT,400,0,5000,5000,4580,0
+MolecuLA raw OLS (seed-excluded),BertzCT,635483,0,5000,5000,5000,0
+ChemSpacE extreme-SVM,HeavyAtomCount,400,0,5000,5000,2796,0
+MolecuLA raw OLS (seed-excluded),HeavyAtomCount,635483,0,5000,5000,4859,0

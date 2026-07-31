@@ -1,0 +1,15 @@
+check,passed,detail
+official scorer assets,True,"[{'artifact': 'sa_implementation', 'rdkit_version': '2025.09.3'}, {'artifact': 'sa_fragment_model', 'rdkit_version': '2025.09.3'}, {'artifact': 'np_implementation', 'rdkit_version': '2025.09.3'}, {'artifact': 'np_fragment_model', 'rdkit_version': '2025.09.3'}]"
+"60,000 candidate rows",True,60000
+valid scores complete,True,57224
+invalid scores absent,True,2776
+SA range,True,"(np.float64(1.0), np.float64(9.634626313902745))"
+NP confidence range,True,"(np.float64(0.0), np.float64(1.0))"
+canonical score consistency,True,exact
+scorer-version structure identity,True,21797 source spellings -> 21797 scorer-version structures; 9 spellings recanonicalized
+three weighting views,True,"['candidate_occurrence', 'seed_weighted', 'unique_structure']"
+quality rules explicit,True,"['none', 'np_nondecreasing', 'sa_and_np', 'sa_nonworsening']"
+property-only constrained success reproduced,True,96
+exact latent pair count,True,30000
+matched-similarity pair preservation,True,27365
+adjacent transition count,True,59400

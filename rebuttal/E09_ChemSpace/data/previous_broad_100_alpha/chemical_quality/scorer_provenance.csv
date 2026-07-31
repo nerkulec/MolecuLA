@@ -1,0 +1,5 @@
+artifact,logical_name,bytes,sha256,rdkit_version,official_source,interpretation
+sa_implementation,sascorer.py,6105,eb27b3b3d92e024dafce02fa09f2c5aeb00bb9279933e8f8eb7d36bb5b3b0d51,2025.09.3,https://github.com/rdkit/rdkit/blob/master/Contrib/SA_Score/sascorer.py,"1=easier, 10=harder; RDKit Contrib implementation"
+sa_fragment_model,fpscores.pkl.gz,3848394,10dcef9340c873e7b987924461b0af5365eb8dd96be607203debe8ddf80c1e73,2025.09.3,https://github.com/rdkit/rdkit/blob/master/Contrib/SA_Score/fpscores.pkl.gz,Radius-2 Morgan fragment contribution table
+np_implementation,npscorer.py,4678,ff44e9bd6beaa00ed83d222619919a6de0f81d57ad13fce57362de92a563ed6e,2025.09.3,https://github.com/rdkit/rdkit/blob/master/Contrib/NP_Score/npscorer.py,Higher=more natural-product-like; confidence is fragment coverage
+np_fragment_model,publicnp.model.gz,2077102,34db5b02d762e05a0243e640aee24202a5303b7ec810ced7ff929a233e082ab6,2025.09.3,https://github.com/rdkit/rdkit/blob/master/Contrib/NP_Score/publicnp.model.gz,Public natural-product versus ZINC fragment model

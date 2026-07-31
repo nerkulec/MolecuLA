@@ -1,0 +1,7 @@
+method,property,scale,loaded_from_cache,candidates,decoder_seconds,descriptor_and_identity_seconds
+ChemSpacE released-ZINC protocol,FractionCSP3,native_l2,True,4200,,
+ChemSpacE released-ZINC protocol,HBA,native_l2,True,4200,,
+ChemSpacE released-ZINC protocol,TPSA,native_l2,True,4200,,
+ChemSpacE released-ZINC protocol,cLogP,native_l2,True,4200,,
+ChemSpacE released-ZINC protocol,BertzCT,native_l2,True,4200,,
+ChemSpacE released-ZINC protocol,HeavyAtomCount,native_l2,True,4200,,

@@ -1,0 +1,49 @@
+method,property,objective,seed_similarity_cutoff,quality_rule,seeds,successful_seeds,success_fraction,median_best_improvement,median_selected_similarity,median_selected_delta_sa,median_selected_delta_np,median_selected_np_confidence,selected_scaffold_retention
+ChemSpacE extreme-SVM,BertzCT,maximize,0.0,sa_nonworsening,50,9,0.18,238.2941216018289,0.0555555555555555,-0.7248516091931538,1.2505031195949816,1.0,
+MolecuLA raw OLS (seed-excluded),BertzCT,maximize,0.0,sa_nonworsening,50,0,0.0,,,,,,
+ChemSpacE extreme-SVM,BertzCT,maximize,0.2,sa_nonworsening,50,0,0.0,,,,,,
+MolecuLA raw OLS (seed-excluded),BertzCT,maximize,0.2,sa_nonworsening,50,0,0.0,,,,,,
+ChemSpacE extreme-SVM,BertzCT,maximize,0.4,sa_nonworsening,50,0,0.0,,,,,,
+MolecuLA raw OLS (seed-excluded),BertzCT,maximize,0.4,sa_nonworsening,50,0,0.0,,,,,,
+ChemSpacE extreme-SVM,BertzCT,maximize,0.6,sa_nonworsening,50,0,0.0,,,,,,
+MolecuLA raw OLS (seed-excluded),BertzCT,maximize,0.6,sa_nonworsening,50,0,0.0,,,,,,
+ChemSpacE extreme-SVM,FractionCSP3,maximize,0.0,sa_nonworsening,50,15,0.3,0.666048237476809,0.0425531914893617,-0.328557508399113,1.0545650129288195,1.0,0.0
+MolecuLA raw OLS (seed-excluded),FractionCSP3,maximize,0.0,sa_nonworsening,50,7,0.14,0.5142857142857143,0.0769230769230769,-0.2491208969602993,0.4831546011519823,1.0,0.1666666666666666
+ChemSpacE extreme-SVM,FractionCSP3,maximize,0.2,sa_nonworsening,50,1,0.02,0.0281385281385282,0.5647058823529412,-0.0257744292421069,-0.106231384903271,0.9852941176470588,0.0
+MolecuLA raw OLS (seed-excluded),FractionCSP3,maximize,0.2,sa_nonworsening,50,3,0.06,0.0281385281385282,0.5647058823529412,-0.0257744292421069,-0.106231384903271,0.9852941176470588,0.3333333333333333
+ChemSpacE extreme-SVM,FractionCSP3,maximize,0.4,sa_nonworsening,50,1,0.02,0.0281385281385282,0.5647058823529412,-0.0257744292421069,-0.106231384903271,0.9852941176470588,0.0
+MolecuLA raw OLS (seed-excluded),FractionCSP3,maximize,0.4,sa_nonworsening,50,2,0.04,0.0140692640692641,0.706881243063263,-0.0240344174182558,-0.0704039438815007,0.9926470588235294,0.5
+ChemSpacE extreme-SVM,FractionCSP3,maximize,0.6,sa_nonworsening,50,0,0.0,,,,,,
+MolecuLA raw OLS (seed-excluded),FractionCSP3,maximize,0.6,sa_nonworsening,50,1,0.02,6.938893903907228e-18,0.8490566037735849,-0.0222944055944047,-0.0345765028597304,1.0,1.0
+ChemSpacE extreme-SVM,HBA,maximize,0.0,sa_nonworsening,50,0,0.0,,,,,,
+MolecuLA raw OLS (seed-excluded),HBA,maximize,0.0,sa_nonworsening,50,2,0.04,8.5,0.1714219972388403,-0.4994312140963028,0.056664104647983,0.8118279569892473,0.0
+ChemSpacE extreme-SVM,HBA,maximize,0.2,sa_nonworsening,50,0,0.0,,,,,,
+MolecuLA raw OLS (seed-excluded),HBA,maximize,0.2,sa_nonworsening,50,1,0.02,1.0,0.2452830188679245,-0.248241147248283,-0.7537793699192402,1.0,0.0
+ChemSpacE extreme-SVM,HBA,maximize,0.4,sa_nonworsening,50,0,0.0,,,,,,
+MolecuLA raw OLS (seed-excluded),HBA,maximize,0.4,sa_nonworsening,50,0,0.0,,,,,,
+ChemSpacE extreme-SVM,HBA,maximize,0.6,sa_nonworsening,50,0,0.0,,,,,,
+MolecuLA raw OLS (seed-excluded),HBA,maximize,0.6,sa_nonworsening,50,0,0.0,,,,,,
+ChemSpacE extreme-SVM,HeavyAtomCount,maximize,0.0,sa_nonworsening,50,0,0.0,,,,,,
+MolecuLA raw OLS (seed-excluded),HeavyAtomCount,maximize,0.0,sa_nonworsening,50,2,0.04,36.5,0.3101307189542483,-0.7307205626464315,1.6724328131418682,0.7615149833518313,0.0
+ChemSpacE extreme-SVM,HeavyAtomCount,maximize,0.2,sa_nonworsening,50,0,0.0,,,,,,
+MolecuLA raw OLS (seed-excluded),HeavyAtomCount,maximize,0.2,sa_nonworsening,50,1,0.02,1.0,0.5647058823529412,-0.0257744292421069,-0.106231384903271,0.9852941176470588,0.0
+ChemSpacE extreme-SVM,HeavyAtomCount,maximize,0.4,sa_nonworsening,50,0,0.0,,,,,,
+MolecuLA raw OLS (seed-excluded),HeavyAtomCount,maximize,0.4,sa_nonworsening,50,1,0.02,1.0,0.5647058823529412,-0.0257744292421069,-0.106231384903271,0.9852941176470588,0.0
+ChemSpacE extreme-SVM,HeavyAtomCount,maximize,0.6,sa_nonworsening,50,0,0.0,,,,,,
+MolecuLA raw OLS (seed-excluded),HeavyAtomCount,maximize,0.6,sa_nonworsening,50,0,0.0,,,,,,
+ChemSpacE extreme-SVM,TPSA,maximize,0.0,sa_nonworsening,50,2,0.04,18.28,0.3244514106583072,-0.3611493995497392,0.6375524832364736,0.9615384615384616,0.0
+MolecuLA raw OLS (seed-excluded),TPSA,maximize,0.0,sa_nonworsening,50,8,0.16,14.035,0.5322668854252119,-0.0916037210464111,-0.123448663538341,0.9437467294610152,0.125
+ChemSpacE extreme-SVM,TPSA,maximize,0.2,sa_nonworsening,50,1,0.02,9.23,0.5454545454545454,-0.2109040723981863,0.5441669316636111,1.0,0.0
+MolecuLA raw OLS (seed-excluded),TPSA,maximize,0.2,sa_nonworsening,50,8,0.16,14.035,0.5322668854252119,-0.0916037210464111,-0.123448663538341,0.9437467294610152,0.125
+ChemSpacE extreme-SVM,TPSA,maximize,0.4,sa_nonworsening,50,1,0.02,9.23,0.5454545454545454,-0.2109040723981863,0.5441669316636111,1.0,0.0
+MolecuLA raw OLS (seed-excluded),TPSA,maximize,0.4,sa_nonworsening,50,5,0.1,17.07,0.5647058823529412,-0.0257744292421069,0.0077267385983266,0.981132075471698,0.2
+ChemSpacE extreme-SVM,TPSA,maximize,0.6,sa_nonworsening,50,0,0.0,,,,,,
+MolecuLA raw OLS (seed-excluded),TPSA,maximize,0.6,sa_nonworsening,50,1,0.02,43.09,0.6304347826086957,-0.0163111592632727,0.1155022576557577,0.9487179487179488,1.0
+ChemSpacE extreme-SVM,cLogP,maximize,0.0,sa_nonworsening,50,12,0.24,0.7551500000000013,0.1675531914893617,-0.3634648423015987,-0.1611865715508653,0.9230769230769232,0.0
+MolecuLA raw OLS (seed-excluded),cLogP,maximize,0.0,sa_nonworsening,50,14,0.28,2.005040000000003,0.1311459543166859,-0.4006709477046555,0.3025481179909701,0.9504283965728274,0.1111111111111111
+ChemSpacE extreme-SVM,cLogP,maximize,0.2,sa_nonworsening,50,8,0.16,0.7294500000000006,0.3409444732745199,-0.2296106726313516,-0.3915201963688529,0.983875128998968,0.125
+MolecuLA raw OLS (seed-excluded),cLogP,maximize,0.2,sa_nonworsening,50,9,0.18,0.4638000000000017,0.375,-0.1667398512204219,-0.1924466428937585,0.9852941176470588,0.1111111111111111
+ChemSpacE extreme-SVM,cLogP,maximize,0.4,sa_nonworsening,50,2,0.04,0.5556500000000002,0.5586687306501548,-0.2528704314042702,-0.3996680970621357,0.9926470588235294,0.0
+MolecuLA raw OLS (seed-excluded),cLogP,maximize,0.4,sa_nonworsening,50,3,0.06,0.4638000000000017,0.5647058823529412,-0.0438377710027104,-0.106231384903271,1.0,0.3333333333333333
+ChemSpacE extreme-SVM,cLogP,maximize,0.6,sa_nonworsening,50,0,0.0,,,,,,
+MolecuLA raw OLS (seed-excluded),cLogP,maximize,0.6,sa_nonworsening,50,1,0.02,0.3900999999999999,0.7222222222222222,-0.0438377710027104,-0.3940341347584505,1.0,1.0

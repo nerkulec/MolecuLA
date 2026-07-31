@@ -1,0 +1,9 @@
+status,claim
+Supported,ChemSpacE provides a genuine external direction-learning baseline on the frozen MolecuLA interface.
+Supported,The continuous probe gives more gradual local control and more candidates satisfying published similarity constraints.
+Supported,ChemSpacE is slightly stronger for cLogP rank ordering but substantially more aggressive in decoder space.
+Supported,"Large unconstrained gains are entangled with seed/scaffold loss, decoder saturation, and SA deterioration."
+Not supported,MolecuLA is a better molecular optimizer than complete ChemSpacE-supported generative models.
+Not supported,SELFIES or RDKit validity establishes chemical plausibility.
+Not supported,The paired extreme-SVM comparison is a 400-oracle-call baseline; it ranks the full cached label pool.
+Qualification,The historical 50-seed registry is excluded from both learners but is not test-partition-only.
