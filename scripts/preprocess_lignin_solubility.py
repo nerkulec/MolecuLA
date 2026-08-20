@@ -38,6 +38,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--start-rowid", type=int)
     parser.add_argument("--end-rowid", type=int)
     parser.add_argument("--fetch-size", type=int, default=10_000)
+    parser.add_argument("--no-progress", action="store_true", help="Disable the per-process tqdm progress bar.")
     return parser.parse_args()
 
 
@@ -145,7 +146,10 @@ def main() -> int:
     uri = f"file:{args.db.resolve()}?mode=ro&immutable=1"
     with sqlite3.connect(uri, uri=True) as connection:
         rows = fetch_rows(connection, args)
-    processed = [process_row(row) for row in tqdm(rows, desc="canonicalize", unit="mol")]
+    processed = [
+        process_row(row)
+        for row in tqdm(rows, desc="canonicalize", unit="mol", disable=args.no_progress)
+    ]
     frame = pd.DataFrame(processed)
     rows_path = args.output_dir / "rows.csv.gz"
     write_rows(frame, rows_path)
