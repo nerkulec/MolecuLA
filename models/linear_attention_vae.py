@@ -246,15 +246,16 @@ class VaeTransformer(nn.Module):
         B, _ = z.shape
         pred_len = F.softplus(self.fc_lenght(z.detach())).squeeze(-1)
         pred_len_i = torch.round(pred_len).long()
-        pred_len_i = torch.clamp(pred_len_i, min=1)
+        pred_len_i = torch.clamp(pred_len_i, min=1, max=self.max_len)
 
         z = self.fc_z2h(z)
         slots = z.view(B, self.num_slots, self.hidden_size)
         slots = slots - slots.mean(dim=1, keepdim=True)
         slots = F.layer_norm(slots, slots.shape[-1:])
-        # Allocate the decode canvas from the clamped integer lengths so
-        # near-zero length predictions still produce at least one token slot.
-        max_len_batch = int(pred_len_i.max().item())
+        # Train against every target position.  Using the predicted length here
+        # made the reconstruction objective ignore all positions after an
+        # underestimated length, especially early in training.
+        max_len_batch = x.size(1) if mode == "train" and x is not None else int(pred_len_i.max().item())
         t = torch.arange(max_len_batch, device=z.device)[None, :]
 
         pos_q = self.pos_encoder(torch.empty(B, max_len_batch, self.hidden_size, device=z.device))
@@ -264,7 +265,7 @@ class VaeTransformer(nn.Module):
         h = self.cross_block(pos_q, slots, slots)
         h = F.layer_norm(h, h.shape[-1:])
 
-        dec_mask = t < pred_len_i[:, None]
+        dec_mask = (x != 0) if mode == "train" and x is not None else t < pred_len_i[:, None]
 
         for block in self.decoder_blocks:
             h = block(h, h, h, pad_mask=dec_mask)
@@ -285,28 +286,11 @@ class VaeTransformer(nn.Module):
 
 
 def vae_loss(logits, x, mu, logvar, pred_len, beta=0.01, alpha=0.1, pad_id=0):
-    B, T_pred, V = logits.shape
-    T_x = x.size(1)
+    _, T_pred, V = logits.shape
     true_len = (x != pad_id).sum(dim=-1)
-    pred_len_i = torch.round(pred_len).long().clamp(min=1)
-
-    t_pred = torch.arange(T_pred, device=x.device)[None, :]
-    t_x = torch.arange(T_x, device=x.device)[None, :]
-
-    pred_mask = t_pred < pred_len_i[:, None]
-    true_mask = t_x < true_len[:, None]
-
-    min_T = min(T_pred, T_x)
-    pred_mask = pred_mask[:, :min_T]
-    true_mask = true_mask[:, :min_T]
-
-    mask = pred_mask & true_mask
-
-    logits = logits[:, :min_T, :].reshape(-1, V)
-    targets = x[:, :min_T].reshape(-1)
-    mask = mask.reshape(-1)
-
-    rec_loss = F.cross_entropy(logits[mask], targets[mask])
+    if T_pred != x.size(1):
+        raise ValueError(f"Training logits/targets differ in length: {T_pred} != {x.size(1)}")
+    rec_loss = F.cross_entropy(logits.reshape(-1, V), x.reshape(-1), ignore_index=pad_id)
     kl_loss = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
     len_loss = F.mse_loss(pred_len, true_len.float())
     loss = rec_loss + beta * kl_loss + alpha * len_loss

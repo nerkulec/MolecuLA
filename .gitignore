@@ -2,11 +2,16 @@ __pycache__/
 *.py[cod]
 .ipynb_checkpoints/
 .venv/
+.venv-*/
+*-venv/
+*-venv-*/
 venv/
 env/
+artifacts/
 outputs/
 runs/
 logs/
+slurm_*.out
 wandb/
 *.npy
 *.npz
@@ -17,3 +22,7 @@ study/**/Z_mu.npy
 study/**/Z_logvar.npy
 .DS_Store
 Thumbs.db
+*.db-journal
+*.db-shm
+*.db-wal
+data/lignin_solubility.db

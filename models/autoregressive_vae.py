@@ -118,10 +118,18 @@ class VaeTransformer(nn.Module):
         self.pos_block = MultiHeadAttention(hidden_size, attn_heads)
         self.encoder_blocks = nn.ModuleList([MultiHeadAttention(hidden_size, attn_heads) for _ in range(encoder_layers)])
         self.pool = MultiSlotPooling(hidden_size, num_slots=num_slots)
+        # These checkpointed modules/parameters are part of the released training
+        # architecture.  They are retained for strict checkpoint compatibility even
+        # though the final encoder path below does not invoke the optional slot mixer.
+        self.slots_mix = MultiHeadAttention(hidden_size, num_heads=num_slots)
+        self.slot_gamma = nn.Parameter(torch.ones(1, num_slots, hidden_size))
+        self.slot_beta = nn.Parameter(torch.zeros(1, num_slots, hidden_size))
 
         # VAE heads
         self.slot_mu = nn.Linear(hidden_size, latent_size)
         self.slot_logvar = nn.Linear(hidden_size, latent_size)  
+        self.slot_compress_mu = nn.Linear(hidden_size, latent_size // num_slots)
+        self.slot_compress_logvar = nn.Linear(hidden_size, latent_size // num_slots)
 
         self.fc_mu = nn.Linear(num_slots * hidden_size, latent_size)
         self.fc_logvar = nn.Linear(num_slots * hidden_size, latent_size)
@@ -198,7 +206,7 @@ class VaeTransformer(nn.Module):
         logits = torch.einsum("bqz,bkz->bqk", q, k)
 
         confidence = -torch.logsumexp(slots_logvar, dim=-1).unsqueeze(1) #-slots_logvar.mean(dim=-1).unsqueeze(1)
-        confidence_scale = 0.3
+        confidence_scale = 0.5
 
         logits = logits + confidence_scale * confidence
         attn = torch.softmax(logits / 0.5, dim=-1)
@@ -222,7 +230,7 @@ class VaeTransformer(nn.Module):
         else:
             return mu
 
-    def decode(self, z, x_in=None, max_len=80, start_id=1, eos_id=2):
+    def decode(self, z, x_in=None, max_len=None, start_id=1, eos_id=2):
         B = z.size(0)
         device = z.device
 
@@ -247,7 +255,7 @@ class VaeTransformer(nn.Module):
         else:
             tokens = torch.full((B, 1), start_id, dtype=torch.long, device=device)
             finished = torch.zeros(B, dtype=torch.bool, device=device)
-            max_len = self.max_len * 2
+            max_len = self.max_len if max_len is None else int(max_len)
 
             for _ in range(max_len):
                 x_emb = self.decoder_embed(tokens)
