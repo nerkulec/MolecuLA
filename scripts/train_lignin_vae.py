@@ -55,6 +55,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--precision", choices=["fp32", "fp16", "bf16"], required=True)
     parser.add_argument("--max-train-samples", type=int)
     parser.add_argument("--max-val-samples", type=int)
+    parser.add_argument("--max-wall-clock-hours", type=float)
     parser.add_argument("--greedy-val-samples", type=int, required=True)
     parser.add_argument("--save-every", type=int, required=True)
     parser.add_argument("--hidden-size", type=int, default=MODEL_CONFIG["hidden_size"])
@@ -89,6 +90,8 @@ def validate_args(args: argparse.Namespace) -> argparse.Namespace:
         raise ValueError("--num-workers cannot be negative")
     if args.greedy_val_samples < 0:
         raise ValueError("--greedy-val-samples cannot be negative")
+    if args.max_wall_clock_hours is not None and args.max_wall_clock_hours <= 0:
+        raise ValueError("--max-wall-clock-hours must be positive")
     if args.hidden_size % args.attn_heads:
         raise ValueError("--hidden-size must be divisible by --attn-heads")
     if args.hidden_size % args.num_slots:
@@ -273,6 +276,12 @@ def train(args: argparse.Namespace, epoch_callback=None) -> int:
     )
 
     best_selection_loss = math.inf
+    training_started = time.time()
+    deadline = (
+        training_started + args.max_wall_clock_hours * 3600
+        if args.max_wall_clock_hours is not None
+        else None
+    )
     for epoch in range(args.epochs):
         started = time.time()
         train_sampler.set_epoch(epoch)
@@ -328,6 +337,22 @@ def train(args: argparse.Namespace, epoch_callback=None) -> int:
             torch.save(state, args.output_dir / "best.pt")
         if args.save_every > 0 and (epoch + 1) % args.save_every == 0:
             torch.save(state, args.output_dir / f"epoch_{epoch:03d}.pt")
+        if deadline is not None and epoch + 1 < args.epochs:
+            remaining = deadline - time.time()
+            # Stop before an additional epoch is likely to overrun the budget.
+            if remaining < record["elapsed_seconds"] * 1.1:
+                print(
+                    json.dumps(
+                        {
+                            "stopped": "wall_clock_budget",
+                            "completed_epochs": epoch + 1,
+                            "elapsed_seconds": time.time() - training_started,
+                            "budget_hours": args.max_wall_clock_hours,
+                        }
+                    ),
+                    flush=True,
+                )
+                break
     return 0
 
 

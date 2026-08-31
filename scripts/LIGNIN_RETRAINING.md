@@ -137,8 +137,10 @@ accuracy; `--greedy-val-samples 0` disables the latter when fast epochs matter.
 
 The Bayesian sweep in `sweeps/lignin_autoregressive.yaml` varies learning rate,
 KL ceiling, hidden size, latent size, slot count, encoder depth, decoder depth,
-and batch size. Each trial trains for five epochs on the same deterministic
-200,000/20,000-row subsets. Model selection minimizes
+and batch size. Each trial uses the full deterministic train/validation splits
+and trains for up to 36 hours. The 1,000-epoch ceiling is only a safety bound;
+training stops between epochs before another epoch is likely to exceed the wall
+clock budget. Model selection minimizes
 `val/selection_loss = reconstruction_loss + 0.03 * kl_loss`; the fixed comparison
 weight makes trials with different training KL schedules directly comparable.
 

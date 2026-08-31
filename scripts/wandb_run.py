@@ -31,8 +31,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, required=True)
     parser.add_argument("--num-workers", type=int, required=True)
     parser.add_argument("--precision", choices=["fp32", "fp16", "bf16"], required=True)
-    parser.add_argument("--max-train-samples", type=int, required=True)
-    parser.add_argument("--max-val-samples", type=int, required=True)
+    parser.add_argument("--max-train-samples", type=int)
+    parser.add_argument("--max-val-samples", type=int)
+    parser.add_argument("--max-wall-clock-hours", type=float, required=True)
     parser.add_argument("--greedy-val-samples", type=int, required=True)
     parser.add_argument("--save-every", type=int, required=True)
     parser.add_argument("--log-checkpoint", type=parse_bool, required=True)
@@ -94,6 +95,7 @@ def main() -> int:
             precision=sweep_args.precision,
             max_train_samples=sweep_args.max_train_samples,
             max_val_samples=sweep_args.max_val_samples,
+            max_wall_clock_hours=sweep_args.max_wall_clock_hours,
             greedy_val_samples=sweep_args.greedy_val_samples,
             save_every=sweep_args.save_every,
             hidden_size=sweep_args.hidden_size,

@@ -28,13 +28,11 @@ parameters:
   log-checkpoint:
     value: true
 
-  # Comparable compute budget for every trial.
+  # Comparable 36-hour, full-dataset compute budget for every trial.
   epochs:
-    value: 5
-  max-train-samples:
-    value: 200000
-  max-val-samples:
-    value: 20000
+    value: 1000
+  max-wall-clock-hours:
+    value: 36
   greedy-val-samples:
     value: 32
   save-every:
