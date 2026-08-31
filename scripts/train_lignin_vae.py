@@ -43,7 +43,8 @@ LEARNING_RATE = 3e-4
 WEIGHT_DECAY = 1e-2
 MAX_BETA = 0.03
 SELECTION_BETA = 0.03
-BETA_CYCLE_EPOCHS = 10
+BETA_WARMUP_EPOCHS = 10
+LR_WARMUP_STEPS = 1000
 GRAD_CLIP = 1.0
 SEED = 42
 
@@ -76,7 +77,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--learning-rate", type=float, default=LEARNING_RATE)
     parser.add_argument("--weight-decay", type=float, default=WEIGHT_DECAY)
     parser.add_argument("--max-beta", type=float, default=MAX_BETA)
-    parser.add_argument("--beta-cycle-epochs", type=int, default=BETA_CYCLE_EPOCHS)
+    parser.add_argument(
+        "--beta-warmup-epochs",
+        "--beta-cycle-epochs",
+        dest="beta_warmup_epochs",
+        type=int,
+        default=BETA_WARMUP_EPOCHS,
+    )
+    parser.add_argument("--lr-warmup-steps", type=int, default=LR_WARMUP_STEPS)
     parser.add_argument("--grad-clip", type=float, default=GRAD_CLIP)
     parser.add_argument("--seed", type=int, default=SEED)
     return parser.parse_args()
@@ -114,8 +122,10 @@ def validate_args(args: argparse.Namespace) -> argparse.Namespace:
             raise ValueError(f"--{name.replace('_', '-')} must be at least 1")
     if args.learning_rate <= 0 or args.weight_decay < 0 or args.max_beta < 0:
         raise ValueError("Learning rate must be positive; weight decay and beta cannot be negative")
-    if args.beta_cycle_epochs < 1 or args.grad_clip <= 0:
-        raise ValueError("--beta-cycle-epochs and --grad-clip must be positive")
+    if args.beta_warmup_epochs < 1 or args.grad_clip <= 0:
+        raise ValueError("--beta-warmup-epochs and --grad-clip must be positive")
+    if args.lr_warmup_steps < 0:
+        raise ValueError("--lr-warmup-steps cannot be negative")
     return args
 
 
@@ -134,7 +144,7 @@ def objective(model: VaeTransformer, x: torch.Tensor, beta: float):
     mask = targets.ne(0)
     token_correct = (predicted.eq(targets) & mask).sum()
     exact = (predicted.eq(targets) | ~mask).all(1).sum()
-    return loss, reconstruction, kl, token_correct, mask.sum(), exact
+    return loss, reconstruction, kl, token_correct, mask.sum(), exact, mu, logvar
 
 
 def run_epoch(
@@ -142,6 +152,7 @@ def run_epoch(
     model: VaeTransformer,
     loader: DataLoader,
     optimizer: torch.optim.Optimizer,
+    scheduler,
     scaler,
     device: torch.device,
     beta: float,
@@ -162,16 +173,35 @@ def run_epoch(
         if train:
             optimizer.zero_grad(set_to_none=True)
         with torch.set_grad_enabled(train), amp_context(device, args.precision):
-            loss, reconstruction, kl, token_correct, token_total, exact = objective(
-                model, x, beta
+            (
+                loss,
+                reconstruction,
+                kl,
+                token_correct,
+                token_total,
+                exact,
+                mu,
+                logvar,
+            ) = objective(model, x, beta)
+        if not torch.isfinite(loss):
+            raise FloatingPointError(
+                "Non-finite loss before backward: "
+                f"reconstruction={float(reconstruction.detach())}, "
+                f"kl={float(kl.detach())}, mu_abs_max={float(mu.detach().abs().max())}, "
+                f"logvar_min={float(logvar.detach().min())}, "
+                f"logvar_max={float(logvar.detach().max())}"
             )
         grad_norm = None
         if train:
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
-            grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+            grad_norm = torch.nn.utils.clip_grad_norm_(
+                model.parameters(), args.grad_clip, error_if_nonfinite=True
+            )
             scaler.step(optimizer)
             scaler.update()
+            if scheduler is not None:
+                scheduler.step()
         count = len(x)
         sums += [
             float(loss.detach()) * count,
@@ -218,6 +248,12 @@ def run_epoch(
                 f"{stage}/rows_per_second": sums[6] / elapsed,
                 "optimization/beta": beta,
                 "optimization/learning_rate": optimizer.param_groups[0]["lr"],
+                "latent/mu_mean": float(mu.detach().float().mean()),
+                "latent/mu_std": float(mu.detach().float().std()),
+                "latent/mu_abs_max": float(mu.detach().float().abs().max()),
+                "latent/logvar_mean": float(logvar.detach().float().mean()),
+                "latent/logvar_min": float(logvar.detach().float().min()),
+                "latent/logvar_max": float(logvar.detach().float().max()),
             }
             if grad_norm is not None:
                 payload["optimization/gradient_norm"] = float(grad_norm.detach())
@@ -349,6 +385,16 @@ def train(args: argparse.Namespace, epoch_callback=None, batch_callback=None) ->
     optimizer = torch.optim.AdamW(
         model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay
     )
+    scheduler = (
+        torch.optim.lr_scheduler.LinearLR(
+            optimizer,
+            start_factor=0.05,
+            end_factor=1.0,
+            total_iters=args.lr_warmup_steps,
+        )
+        if args.lr_warmup_steps > 0
+        else None
+    )
     scaler_enabled = device.type == "cuda" and args.precision == "fp16"
     try:
         scaler = torch.amp.GradScaler("cuda", enabled=scaler_enabled)
@@ -365,7 +411,8 @@ def train(args: argparse.Namespace, epoch_callback=None, batch_callback=None) ->
         "learning_rate": args.learning_rate,
         "weight_decay": args.weight_decay,
         "max_beta": args.max_beta,
-        "beta_cycle_epochs": args.beta_cycle_epochs,
+        "beta_warmup_epochs": args.beta_warmup_epochs,
+        "lr_warmup_steps": args.lr_warmup_steps,
         "grad_clip": args.grad_clip,
         "seed": args.seed,
     }
@@ -384,17 +431,16 @@ def train(args: argparse.Namespace, epoch_callback=None, batch_callback=None) ->
     for epoch in range(args.epochs):
         started = time.time()
         train_sampler.set_epoch(epoch)
-        if args.beta_cycle_epochs == 1:
-            beta = args.max_beta
-        else:
-            beta = args.max_beta * (
-                (epoch % args.beta_cycle_epochs) / (args.beta_cycle_epochs - 1)
-            )
+        # Monotonic, nonzero warmup. With millions of rows per epoch, holding
+        # beta at zero for epoch 0 permits tens of thousands of unconstrained
+        # posterior updates and can make exp(logvar) overflow.
+        beta = args.max_beta * min(1.0, (epoch + 1) / args.beta_warmup_epochs)
         train_sums = run_epoch(
             args,
             model,
             train_loader,
             optimizer,
+            scheduler,
             scaler,
             device,
             beta,
@@ -408,6 +454,7 @@ def train(args: argparse.Namespace, epoch_callback=None, batch_callback=None) ->
             model,
             val_loader,
             optimizer,
+            None,
             scaler,
             device,
             beta,
@@ -456,6 +503,7 @@ def train(args: argparse.Namespace, epoch_callback=None, batch_callback=None) ->
             "model": model.state_dict(),
             "optimizer": optimizer.state_dict(),
             "scaler": scaler.state_dict(),
+            "scheduler": scheduler.state_dict() if scheduler is not None else None,
             "record": record,
         }
         torch.save(state, args.output_dir / "last.pt")

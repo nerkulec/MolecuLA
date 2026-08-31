@@ -48,7 +48,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--learning-rate", type=float, required=True)
     parser.add_argument("--weight-decay", type=float, required=True)
     parser.add_argument("--max-beta", type=float, required=True)
-    parser.add_argument("--beta-cycle-epochs", type=int, required=True)
+    parser.add_argument(
+        "--beta-warmup-epochs",
+        "--beta-cycle-epochs",
+        dest="beta_warmup_epochs",
+        type=int,
+        default=10,
+    )
+    parser.add_argument("--lr-warmup-steps", type=int, default=1000)
     parser.add_argument("--grad-clip", type=float, required=True)
     parser.add_argument("--seed", type=int, required=True)
     return parser.parse_args()
@@ -111,7 +118,8 @@ def main() -> int:
             learning_rate=sweep_args.learning_rate,
             weight_decay=sweep_args.weight_decay,
             max_beta=sweep_args.max_beta,
-            beta_cycle_epochs=sweep_args.beta_cycle_epochs,
+            beta_warmup_epochs=sweep_args.beta_warmup_epochs,
+            lr_warmup_steps=sweep_args.lr_warmup_steps,
             grad_clip=sweep_args.grad_clip,
             seed=sweep_args.seed,
         )

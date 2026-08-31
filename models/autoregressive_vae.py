@@ -199,23 +199,21 @@ class VaeTransformer(nn.Module):
 
         B, K, Z = slots_mu.shape
 
-        # Latent pool from slots with uncertanty
-        q = F.normalize(self.latent_query.expand(B, 1, Z), dim=-1)
-        k = F.normalize(self.latent_key(slots_mu), dim=-1)
-
-        logits = torch.einsum("bqz,bkz->bqk", q, k)
-
-        confidence = -torch.logsumexp(slots_logvar, dim=-1).unsqueeze(1) #-slots_logvar.mean(dim=-1).unsqueeze(1)
-        confidence_scale = 0.5
-
-        logits = logits + confidence_scale * confidence
-        attn = torch.softmax(logits / 0.5, dim=-1)
-
-        mu = torch.einsum("bqk,bkz->bqz", attn, slots_mu).squeeze(1)
-
-        var = torch.exp(slots_logvar)
-        var_agg = torch.einsum("bqk,bkz->bqz", attn, var).squeeze(1)
-        logvar = torch.log(var_agg + 1e-8)
+        # Variance aggregation and exponentials are numerically sensitive under
+        # BF16. Keep this small latent-space calculation in FP32 and constrain
+        # log-variance to a useful, finite range.
+        with torch.autocast(device_type=h.device.type, enabled=False):
+            slots_mu_fp32 = slots_mu.float()
+            slots_logvar_fp32 = slots_logvar.float().clamp(min=-12.0, max=6.0)
+            q = F.normalize(self.latent_query.float().expand(B, 1, Z), dim=-1)
+            k = F.normalize(self.latent_key(slots_mu_fp32), dim=-1)
+            logits = torch.einsum("bqz,bkz->bqk", q, k)
+            confidence = -torch.logsumexp(slots_logvar_fp32, dim=-1).unsqueeze(1)
+            attn = torch.softmax((logits + 0.5 * confidence) / 0.5, dim=-1)
+            mu = torch.einsum("bqk,bkz->bqz", attn, slots_mu_fp32).squeeze(1)
+            var = torch.exp(slots_logvar_fp32)
+            var_agg = torch.einsum("bqk,bkz->bqz", attn, var).squeeze(1)
+            logvar = torch.log(var_agg.clamp_min(1e-8)).clamp(min=-12.0, max=6.0)
         
         if mode == "test":
             return mu, logvar, slots
@@ -224,7 +222,7 @@ class VaeTransformer(nn.Module):
 
     def reparameterize(self, mu, logvar):
         if self.training:
-            std = torch.exp(0.5 * logvar)
+            std = torch.exp(0.5 * logvar.float().clamp(min=-12.0, max=6.0))
             eps = torch.randn_like(std)
             return mu + eps * std
         else:
@@ -327,6 +325,11 @@ def vae_loss(logits, targets, mu, logvar, beta=0.01, pad_id=0):
         ignore_index=pad_id
     )
 
-    kl = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
+    # Evaluate KL in FP32 even when reconstruction runs under autocast.
+    mu_fp32 = mu.float()
+    logvar_fp32 = logvar.float().clamp(min=-12.0, max=6.0)
+    kl = 0.5 * torch.mean(
+        mu_fp32.square() + torch.exp(logvar_fp32) - 1.0 - logvar_fp32
+    )
 
     return rec_loss + beta * kl, rec_loss, kl

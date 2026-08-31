@@ -5,7 +5,7 @@ metric:
   goal: minimize
 
 project: molecula-lignin-autoregressive-rosi
-name: lignin-autoregressive-important-settings
+name: lignin-autoregressive-stable-36h
 command:
   - ${env}
   - python
@@ -51,8 +51,8 @@ parameters:
   # Eight high-impact architecture and optimization settings.
   learning-rate:
     distribution: log_uniform_values
-    min: 0.0001
-    max: 0.001
+    min: 0.00003
+    max: 0.0003
   max-beta:
     distribution: log_uniform_values
     min: 0.003
@@ -75,7 +75,9 @@ parameters:
     value: 8
   weight-decay:
     value: 0.01
-  beta-cycle-epochs:
+  beta-warmup-epochs:
     value: 10
+  lr-warmup-steps:
+    value: 1000
   grad-clip:
     value: 1.0
