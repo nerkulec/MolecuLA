@@ -1,29 +1,23 @@
-# Retraining the three VAEs on lignin solubility molecules
+# Retraining the autoregressive VAE on lignin solubility molecules
 
 This pipeline trains on the canonical `selfies_final` produced by
 `preprocess_lignin_solubility.py`. It deliberately does not use solubility as a
-training target: all three models remain molecular VAEs. Failed preprocessing
+training target: the model remains a molecular VAE. Failed preprocessing
 rows are recorded in the CSV reports and excluded at encoding time.
 
 ## Changes from the released models
 
-- One vocabulary and one indexing scheme for every model: `<PAD>=0`, `<SOS>=1`,
+- Unified indexing: `<PAD>=0`, `<SOS>=1`,
   `<EOS>=2`, `MASK=3`, followed by sorted SELFIES tokens.
-- Latent dimensions are doubled: linear attention **1024** (was 512), simple
-  attention **512** (was 256), autoregressive **512** (was 256).
+- The autoregressive latent dimension is doubled to **512** (from 256).
 - No fixed 77-token filter. Packed variable-length shards are padded only within
   each length-bucketed batch; positional encodings grow dynamically.
-- Non-autoregressive reconstruction is evaluated over the complete target during
-  training. The prior objective omitted suffixes longer than the predicted length.
 - Autoregressive greedy decoding honors its configured maximum length.
-- The raw token-count MSE from the non-autoregressive length head is weighted by
-  `1/max_sequence_length²` (and by an additional 0.1 for linear attention), so it
-  cannot swamp token cross-entropy merely because this corpus has longer molecules.
 - Stable 80/10/10 splits are derived from row IDs by default. Set
   `SPLIT_BY=scaffold` for a harder scaffold-disjoint split (all shards must use the
   same choice and seed).
 - Checkpoints include optimizer/scaler state, architecture, metrics and tokenizer
-  SHA-256, and resume performs strict compatibility checks.
+  SHA-256.
 
 ## HPC profile and environment
 
@@ -110,35 +104,59 @@ preferred. Do not change the split strategy between shards.
 
 ## Train
 
-Submit one ordinary GPU job per architecture. `train.sh` detects the number of
-visible GPUs, starts that many distributed workers, and treats `BATCH_SIZE` as the
-per-GPU batch size:
+Only the autoregressive retraining path is supported. It is a single-process
+Python command with explicit input and output paths and named arguments:
 
 ```bash
-runh1 --project molecula bash train.sh linear_attention
-runh1 --project molecula bash train.sh simple_attention
-runh1 --project molecula bash train.sh autoregressive
+python scripts/train_lignin_vae.py \
+  --model autoregressive \
+  --tokenizer artifacts/lignin_retraining/unified_tokenizer.json \
+  --shards artifacts/lignin_retraining/encoded/shard_* \
+  --output-dir artifacts/lignin_retraining/smoke/autoregressive_50k \
+  --epochs 1 \
+  --batch-size 64 \
+  --num-workers 4 \
+  --precision bf16 \
+  --max-train-samples 50000 \
+  --max-val-samples 5000 \
+  --greedy-val-samples 16 \
+  --save-every 0
 ```
 
-For a four-GPU allocation, use `runh4` with the same command. Common overrides:
-
-```bash
-BATCH_SIZE=64 EPOCHS=75 runh1 --project molecula bash train.sh autoregressive
-PRECISION=fp16 runa1 --project molecula bash train.sh simple_attention
-```
-
-Existing `last.pt` files are resumed automatically. Set `RESUME=none` to start
-without resuming, or `RESUME=/path/to/checkpoint.pt` to select a checkpoint. Note
-that starting without resume in an existing output directory appends to its
-metrics file; use a different `OUTPUT_ROOT` for a genuinely separate experiment.
-
-The standard attention encoder is quadratic in batch-local sequence length; lower
-`BATCH_SIZE` if a long bucket exhausts memory. BF16 is the default.
+The script uses one visible CUDA GPU, or CPU when CUDA is unavailable. It does
+not provide a bash wrapper, distributed launch, alternate architectures,
+automatic path discovery, environment-variable configuration, or checkpoint
+resume mode. Use a fresh `--output-dir` for each run.
 
 Each model directory contains `last.pt`, validation-selected `best.pt`, periodic
 epoch checkpoints, `run_config.json`, and append-only `metrics.jsonl`. Validation
 reports teacher-forced token/exact accuracy and a bounded greedy full-sequence
 accuracy; `--greedy-val-samples 0` disables the latter when fast epochs matter.
+
+## W&B sweep
+
+The Bayesian sweep in `sweeps/lignin_autoregressive.yaml` varies learning rate,
+KL ceiling, hidden size, latent size, slot count, encoder depth, decoder depth,
+and batch size. Each trial trains for five epochs on the same deterministic
+200,000/20,000-row subsets. Model selection minimizes
+`val/selection_loss = reconstruction_loss + 0.03 * kl_loss`; the fixed comparison
+weight makes trials with different training KL schedules directly comparable.
+
+Create the sweep once:
+
+```bash
+wandb sweep sweeps/lignin_autoregressive.yaml
+```
+
+Use the printed sweep path to test one run in an existing GPU allocation:
+
+```bash
+wandb agent --count 1 ENTITY/molecula-lignin-autoregressive-rosi/SWEEP_ID
+```
+
+Additional agents can join the same sweep independently. Each run stores its
+local checkpoints under `artifacts/lignin_retraining/sweeps/autoregressive/RUN_ID`
+and logs its best checkpoint as a W&B model artifact.
 
 ## Direct local/single-GPU use
 
@@ -152,8 +170,9 @@ python scripts/encode_lignin_training_shard.py \
   --rows artifacts/lignin_solubility/local_10k/preprocess/rows.csv.gz \
   --tokenizer /tmp/lignin-smoke/tokenizer.json \
   --output-dir /tmp/lignin-smoke/shard_000
-python scripts/train_lignin_vae.py --model simple_attention \
+python scripts/train_lignin_vae.py --model autoregressive \
   --tokenizer /tmp/lignin-smoke/tokenizer.json --shards /tmp/lignin-smoke/shard_000 \
   --output-dir /tmp/lignin-smoke/run --epochs 1 --batch-size 4 --num-workers 0 \
-  --precision fp32 --max-train-samples 16 --max-val-samples 8 --greedy-val-samples 2
+  --precision fp32 --max-train-samples 16 --max-val-samples 8 \
+  --greedy-val-samples 2 --save-every 0
 ```
