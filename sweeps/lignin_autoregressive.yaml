@@ -37,10 +37,14 @@ parameters:
     value: 32
   save-every:
     value: 0
+  log-every-batches:
+    value: 100
   num-workers:
     value: 4
   precision:
     value: bf16
+  dataset-device:
+    value: cuda
   seed:
     value: 42
 

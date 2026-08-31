@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from torch.utils.data import Dataset, Sampler
+from tqdm.auto import tqdm
 
 
 SPLIT_IDS = {"train": 0, "val": 1, "test": 2}
@@ -54,6 +55,106 @@ class PackedLigninDataset(Dataset):
         shard = self.shards[shard_id]
         start, stop = int(shard["offsets"][local]), int(shard["offsets"][local + 1])
         return torch.as_tensor(np.asarray(shard["tokens"][start:stop], dtype=np.int64)), int(shard["rowids"][local])
+
+
+class GpuPackedLigninDataset:
+    """One packed GPU token buffer shared by train/validation split views."""
+
+    def __init__(self, shard_dirs: list[Path], device: torch.device):
+        directories = sorted(shard_dirs)
+        manifests = [json.loads((directory / "manifest.json").read_text()) for directory in directories]
+        tokenizer_hashes = {manifest["tokenizer_sha256"] for manifest in manifests}
+        if len(tokenizer_hashes) != 1:
+            raise ValueError(f"Encoded shards use different tokenizers: {tokenizer_hashes}")
+        self.tokenizer_sha256 = next(iter(tokenizer_hashes))
+        total_rows = sum(int(manifest["rows"]) for manifest in manifests)
+        total_tokens = sum(int(manifest["tokens"]) for manifest in manifests)
+        estimated_bytes = total_tokens * 4 + (total_rows + 1) * 8
+        print(
+            f"Loading {total_rows:,} sequences and {total_tokens:,} packed tokens "
+            f"onto {device} ({estimated_bytes / 2**30:.2f} GiB)",
+            flush=True,
+        )
+        self.tokens = torch.empty(total_tokens, dtype=torch.int32, device=device)
+        self.offsets = torch.empty(total_rows + 1, dtype=torch.int64, device=device)
+        self.offsets[0] = 0
+        lengths_parts: list[np.ndarray] = []
+        split_parts: list[np.ndarray] = []
+        row_cursor = token_cursor = 0
+        progress = tqdm(
+            zip(directories, manifests, strict=True),
+            total=len(directories),
+            desc="load dataset to GPU",
+            unit="shard",
+            dynamic_ncols=True,
+        )
+        for directory, manifest in progress:
+            tokens = np.load(directory / "tokens.npy", mmap_mode="r")
+            offsets = np.load(directory / "offsets.npy", mmap_mode="r")
+            lengths = np.load(directory / "lengths.npy", mmap_mode="r")
+            splits = np.load(directory / "splits.npy", mmap_mode="r")
+            rows = int(manifest["rows"])
+            token_count = int(manifest["tokens"])
+            self.tokens[token_cursor : token_cursor + token_count].copy_(
+                torch.as_tensor(np.asarray(tokens, dtype=np.int32), device=device)
+            )
+            adjusted_offsets = np.asarray(offsets[1:], dtype=np.int64) + token_cursor
+            self.offsets[row_cursor + 1 : row_cursor + rows + 1].copy_(
+                torch.as_tensor(adjusted_offsets, device=device)
+            )
+            lengths_parts.append(np.asarray(lengths, dtype=np.int32))
+            split_parts.append(np.asarray(splits, dtype=np.uint8))
+            row_cursor += rows
+            token_cursor += token_count
+            progress.set_postfix_str(f"{token_cursor / 1e9:.2f}B tokens")
+        self.lengths = np.concatenate(lengths_parts)
+        self.splits = np.concatenate(split_parts)
+        self.device = device
+
+    def split(self, name: str, limit: int | None = None):
+        indexes = np.flatnonzero(self.splits == SPLIT_IDS[name])
+        if limit is not None:
+            indexes = indexes[:limit]
+        return GpuPackedSplit(self, indexes)
+
+
+class GpuPackedSplit:
+    def __init__(self, parent: GpuPackedLigninDataset, indexes: np.ndarray):
+        self.parent = parent
+        self.indexes = indexes.astype(np.int64, copy=False)
+        self.lengths = parent.lengths[self.indexes]
+        self.tokenizer_sha256 = parent.tokenizer_sha256
+
+    def __len__(self):
+        return len(self.indexes)
+
+    def fetch(self, batch_indexes: list[int]):
+        global_indexes = self.indexes[np.asarray(batch_indexes, dtype=np.int64)]
+        indexes = torch.as_tensor(global_indexes, dtype=torch.int64, device=self.parent.device)
+        starts = self.parent.offsets.index_select(0, indexes)
+        stops = self.parent.offsets.index_select(0, indexes + 1)
+        lengths = stops - starts
+        width = int(lengths.max().item())
+        positions = torch.arange(width, device=self.parent.device)
+        valid = positions.unsqueeze(0) < lengths.unsqueeze(1)
+        packed_indexes = starts.unsqueeze(1) + positions.unsqueeze(0)
+        packed_indexes.masked_fill_(~valid, 0)
+        batch = self.parent.tokens[packed_indexes]
+        batch.masked_fill_(~valid, 0)
+        return batch, indexes + 1
+
+
+class GpuBatchLoader:
+    def __init__(self, dataset: GpuPackedSplit, batch_sampler: Sampler[list[int]]):
+        self.dataset = dataset
+        self.batch_sampler = batch_sampler
+
+    def __len__(self):
+        return len(self.batch_sampler)
+
+    def __iter__(self):
+        for indexes in self.batch_sampler:
+            yield self.dataset.fetch(indexes)
 
 
 def pad_collate(batch):

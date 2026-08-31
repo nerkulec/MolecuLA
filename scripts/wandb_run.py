@@ -31,11 +31,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, required=True)
     parser.add_argument("--num-workers", type=int, required=True)
     parser.add_argument("--precision", choices=["fp32", "fp16", "bf16"], required=True)
+    parser.add_argument("--dataset-device", choices=["cpu", "cuda"], default="cuda")
     parser.add_argument("--max-train-samples", type=int)
     parser.add_argument("--max-val-samples", type=int)
     parser.add_argument("--max-wall-clock-hours", type=float, required=True)
     parser.add_argument("--greedy-val-samples", type=int, required=True)
     parser.add_argument("--save-every", type=int, required=True)
+    parser.add_argument("--log-every-batches", type=int, default=100)
     parser.add_argument("--log-checkpoint", type=parse_bool, required=True)
     parser.add_argument("--hidden-size", type=int, required=True)
     parser.add_argument("--latent-size", type=int, required=True)
@@ -93,11 +95,13 @@ def main() -> int:
             batch_size=sweep_args.batch_size,
             num_workers=sweep_args.num_workers,
             precision=sweep_args.precision,
+            dataset_device=sweep_args.dataset_device,
             max_train_samples=sweep_args.max_train_samples,
             max_val_samples=sweep_args.max_val_samples,
             max_wall_clock_hours=sweep_args.max_wall_clock_hours,
             greedy_val_samples=sweep_args.greedy_val_samples,
             save_every=sweep_args.save_every,
+            log_every_batches=sweep_args.log_every_batches,
             hidden_size=sweep_args.hidden_size,
             latent_size=sweep_args.latent_size,
             attn_heads=sweep_args.attn_heads,
@@ -115,12 +119,12 @@ def main() -> int:
         best = {"loss": float("inf"), "record": None}
 
         def log_epoch(record: dict) -> None:
-            run.log(flatten_record(record), step=record["epoch"])
+            run.log(flatten_record(record))
             if record["val_selection_loss"] < best["loss"]:
                 best["loss"] = record["val_selection_loss"]
                 best["record"] = record
 
-        train(training_args, epoch_callback=log_epoch)
+        train(training_args, epoch_callback=log_epoch, batch_callback=run.log)
         run.summary["val/selection_loss"] = best["loss"]
         run.summary["best/val_selection_loss"] = best["loss"]
         if best["record"] is not None:

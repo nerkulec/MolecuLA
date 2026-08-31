@@ -19,8 +19,15 @@ if str(REPO_ROOT) not in sys.path:
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
+from tqdm.auto import tqdm
 
-from lignin_training_data import BucketBatchSampler, PackedLigninDataset, pad_collate
+from lignin_training_data import (
+    BucketBatchSampler,
+    GpuBatchLoader,
+    GpuPackedLigninDataset,
+    PackedLigninDataset,
+    pad_collate,
+)
 from models.autoregressive_vae import VaeTransformer, vae_loss
 
 
@@ -53,11 +60,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, required=True)
     parser.add_argument("--num-workers", type=int, required=True)
     parser.add_argument("--precision", choices=["fp32", "fp16", "bf16"], required=True)
+    parser.add_argument("--dataset-device", choices=["cpu", "cuda"], default="cuda")
     parser.add_argument("--max-train-samples", type=int)
     parser.add_argument("--max-val-samples", type=int)
     parser.add_argument("--max-wall-clock-hours", type=float)
     parser.add_argument("--greedy-val-samples", type=int, required=True)
     parser.add_argument("--save-every", type=int, required=True)
+    parser.add_argument("--log-every-batches", type=int, default=100)
     parser.add_argument("--hidden-size", type=int, default=MODEL_CONFIG["hidden_size"])
     parser.add_argument("--latent-size", type=int, default=MODEL_CONFIG["latent_size"])
     parser.add_argument("--attn-heads", type=int, default=MODEL_CONFIG["attn_heads"])
@@ -90,6 +99,8 @@ def validate_args(args: argparse.Namespace) -> argparse.Namespace:
         raise ValueError("--num-workers cannot be negative")
     if args.greedy_val_samples < 0:
         raise ValueError("--greedy-val-samples cannot be negative")
+    if args.log_every_batches < 1:
+        raise ValueError("--log-every-batches must be at least 1")
     if args.max_wall_clock_hours is not None and args.max_wall_clock_hours <= 0:
         raise ValueError("--max-wall-clock-hours must be positive")
     if args.hidden_size % args.attn_heads:
@@ -135,21 +146,30 @@ def run_epoch(
     device: torch.device,
     beta: float,
     train: bool,
+    description: str,
+    epoch: int,
+    batch_callback=None,
 ) -> np.ndarray:
     model.train(train)
     sums = np.zeros(7, dtype=np.float64)
-    for x, _ in loader:
-        x = x.to(device, non_blocking=True)
+    stage = "train" if train else "val"
+    stage_started = time.time()
+    progress = tqdm(loader, desc=description, unit="batch", dynamic_ncols=True)
+    for batch_number, (x, _) in enumerate(progress, start=1):
+        # The resident corpus is compact int32; embedding and cross-entropy use
+        # int64 only for the current padded batch.
+        x = x.to(device=device, dtype=torch.long, non_blocking=True)
         if train:
             optimizer.zero_grad(set_to_none=True)
         with torch.set_grad_enabled(train), amp_context(device, args.precision):
             loss, reconstruction, kl, token_correct, token_total, exact = objective(
                 model, x, beta
             )
+        grad_norm = None
         if train:
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+            grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
             scaler.step(optimizer)
             scaler.update()
         count = len(x)
@@ -162,19 +182,80 @@ def run_epoch(
             int(exact),
             count,
         ]
+        if batch_number == 1 or batch_number % 50 == 0:
+            progress.set_postfix(
+                loss=f"{sums[0] / max(1, sums[6]):.4f}",
+                token_acc=f"{sums[3] / max(1, sums[4]):.3f}",
+            )
+        should_log = (
+            batch_callback is not None
+            and (
+                batch_number == 1
+                or batch_number % args.log_every_batches == 0
+                or batch_number == len(loader)
+            )
+        )
+        if should_log:
+            elapsed = max(time.time() - stage_started, 1e-9)
+            payload = {
+                "trainer/epoch": epoch,
+                "trainer/stage": stage,
+                f"{stage}/batch_index": batch_number,
+                f"{stage}/batch_total": len(loader),
+                f"{stage}/batch_rows": count,
+                f"{stage}/batch_sequence_width": x.shape[1],
+                f"{stage}/batch_loss": float(loss.detach()),
+                f"{stage}/batch_reconstruction_loss": float(reconstruction.detach()),
+                f"{stage}/batch_kl_loss": float(kl.detach()),
+                f"{stage}/batch_token_accuracy": int(token_correct) / max(1, int(token_total)),
+                f"{stage}/batch_exact_accuracy": int(exact) / max(1, count),
+                f"{stage}/running_loss": sums[0] / max(1, sums[6]),
+                f"{stage}/running_reconstruction_loss": sums[1] / max(1, sums[6]),
+                f"{stage}/running_kl_loss": sums[2] / max(1, sums[6]),
+                f"{stage}/running_token_accuracy": sums[3] / max(1, sums[4]),
+                f"{stage}/running_exact_accuracy": sums[5] / max(1, sums[6]),
+                f"{stage}/processed_rows": int(sums[6]),
+                f"{stage}/rows_per_second": sums[6] / elapsed,
+                "optimization/beta": beta,
+                "optimization/learning_rate": optimizer.param_groups[0]["lr"],
+            }
+            if grad_norm is not None:
+                payload["optimization/gradient_norm"] = float(grad_norm.detach())
+            if device.type == "cuda":
+                payload.update(
+                    {
+                        "cuda/memory_allocated_gib": torch.cuda.memory_allocated(device) / 2**30,
+                        "cuda/memory_reserved_gib": torch.cuda.memory_reserved(device) / 2**30,
+                        "cuda/max_memory_allocated_gib": torch.cuda.max_memory_allocated(device) / 2**30,
+                    }
+                )
+            batch_callback(payload)
     return sums
 
 
 @torch.inference_mode()
 def greedy_exact(
-    model: VaeTransformer, loader: DataLoader, device: torch.device, limit: int
+    model: VaeTransformer,
+    loader,
+    device: torch.device,
+    limit: int,
+    batch_size: int,
+    description: str,
 ) -> np.ndarray:
     if limit == 0:
         return np.zeros(2, dtype=np.int64)
     model.eval()
     correct = total = 0
-    for x, _ in loader:
-        x = x.to(device, non_blocking=True)
+    batch_limit = min(len(loader), math.ceil(limit / batch_size))
+    progress = tqdm(
+        loader,
+        total=batch_limit,
+        desc=description,
+        unit="batch",
+        dynamic_ncols=True,
+    )
+    for x, _ in progress:
+        x = x.to(device=device, dtype=torch.long, non_blocking=True)
         mu, _ = model.encode(x)
         generated = model.decode(mu, max_len=model.max_len)
         for target, prediction in zip(x, generated):
@@ -185,6 +266,7 @@ def greedy_exact(
             correct += int(torch.equal(target, prediction))
             total += 1
             if total >= limit:
+                progress.close()
                 return np.array([correct, total])
     return np.array([correct, total])
 
@@ -201,12 +283,14 @@ def metrics(sums: np.ndarray) -> dict:
     }
 
 
-def train(args: argparse.Namespace, epoch_callback=None) -> int:
+def train(args: argparse.Namespace, epoch_callback=None, batch_callback=None) -> int:
     args = validate_args(args)
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if args.dataset_device == "cuda" and device.type != "cuda":
+        raise RuntimeError("--dataset-device cuda requires a visible CUDA GPU")
     print(f"Training autoregressive model on {device}; output: {args.output_dir}", flush=True)
 
     tokenizer_bytes = args.tokenizer.read_bytes()
@@ -215,8 +299,13 @@ def train(args: argparse.Namespace, epoch_callback=None) -> int:
     if tokenizer["vocab"][:4] != ["<PAD>", "<SOS>", "<EOS>", "MASK"]:
         raise ValueError("Expected unified PAD/SOS/EOS/MASK indices 0/1/2/3")
 
-    train_data = PackedLigninDataset(args.shards, "train", args.max_train_samples)
-    val_data = PackedLigninDataset(args.shards, "val", args.max_val_samples)
+    if args.dataset_device == "cuda":
+        packed_data = GpuPackedLigninDataset(args.shards, device)
+        train_data = packed_data.split("train", args.max_train_samples)
+        val_data = packed_data.split("val", args.max_val_samples)
+    else:
+        train_data = PackedLigninDataset(args.shards, "train", args.max_train_samples)
+        val_data = PackedLigninDataset(args.shards, "val", args.max_val_samples)
     if train_data.tokenizer_sha256 != tokenizer_hash:
         raise ValueError("Tokenizer does not match encoded shards")
 
@@ -226,15 +315,25 @@ def train(args: argparse.Namespace, epoch_callback=None) -> int:
     val_sampler = BucketBatchSampler(
         val_data.lengths, args.batch_size, False, seed=args.seed
     )
-    loader_options = {
-        "num_workers": args.num_workers,
-        "collate_fn": pad_collate,
-        "pin_memory": device.type == "cuda",
-    }
-    if args.num_workers:
-        loader_options["persistent_workers"] = True
-    train_loader = DataLoader(train_data, batch_sampler=train_sampler, **loader_options)
-    val_loader = DataLoader(val_data, batch_sampler=val_sampler, **loader_options)
+    if args.dataset_device == "cuda":
+        train_loader = GpuBatchLoader(train_data, train_sampler)
+        val_loader = GpuBatchLoader(val_data, val_sampler)
+        if args.num_workers:
+            print(
+                "Dataset is GPU-resident; --num-workers is ignored because batches are "
+                "assembled directly on the GPU.",
+                flush=True,
+            )
+    else:
+        loader_options = {
+            "num_workers": args.num_workers,
+            "collate_fn": pad_collate,
+            "pin_memory": device.type == "cuda",
+        }
+        if args.num_workers:
+            loader_options["persistent_workers"] = True
+        train_loader = DataLoader(train_data, batch_sampler=train_sampler, **loader_options)
+        val_loader = DataLoader(val_data, batch_sampler=val_sampler, **loader_options)
 
     model_config = {
         "hidden_size": args.hidden_size,
@@ -292,12 +391,39 @@ def train(args: argparse.Namespace, epoch_callback=None) -> int:
                 (epoch % args.beta_cycle_epochs) / (args.beta_cycle_epochs - 1)
             )
         train_sums = run_epoch(
-            args, model, train_loader, optimizer, scaler, device, beta, True
+            args,
+            model,
+            train_loader,
+            optimizer,
+            scaler,
+            device,
+            beta,
+            True,
+            f"epoch {epoch + 1}/{args.epochs} train",
+            epoch,
+            batch_callback,
         )
         val_sums = run_epoch(
-            args, model, val_loader, optimizer, scaler, device, beta, False
+            args,
+            model,
+            val_loader,
+            optimizer,
+            scaler,
+            device,
+            beta,
+            False,
+            f"epoch {epoch + 1}/{args.epochs} val",
+            epoch,
+            batch_callback,
         )
-        greedy = greedy_exact(model, val_loader, device, args.greedy_val_samples)
+        greedy = greedy_exact(
+            model,
+            val_loader,
+            device,
+            args.greedy_val_samples,
+            args.batch_size,
+            f"epoch {epoch + 1}/{args.epochs} greedy val",
+        )
         train_metrics = metrics(train_sums)
         val_metrics = metrics(val_sums)
         record = {

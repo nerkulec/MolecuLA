@@ -128,6 +128,12 @@ not provide a bash wrapper, distributed launch, alternate architectures,
 automatic path discovery, environment-variable configuration, or checkpoint
 resume mode. Use a fresh `--output-dir` for each run.
 
+By default, all packed token data is loaded into one GPU-resident int32 buffer;
+only the current padded batch is expanded to int64. For the full corpus this
+uses approximately 6.49 GiB (6.89 GB), including global offsets. Use
+`--dataset-device cpu` to retain the memory-mapped CPU loader instead. GPU data
+loading, training, validation, and greedy validation each display a tqdm bar.
+
 Each model directory contains `last.pt`, validation-selected `best.pt`, periodic
 epoch checkpoints, `run_config.json`, and append-only `metrics.jsonl`. Validation
 reports teacher-forced token/exact accuracy and a bounded greedy full-sequence
@@ -143,6 +149,10 @@ training stops between epochs before another epoch is likely to exceed the wall
 clock budget. Model selection minimizes
 `val/selection_loss = reconstruction_loss + 0.03 * kl_loss`; the fixed comparison
 weight makes trials with different training KL schedules directly comparable.
+Every 100 batches, W&B receives current and running total/reconstruction/KL
+losses, token and exact accuracy, gradient norm, learning rate, beta, throughput,
+sequence width, and CUDA allocated/reserved/peak memory. Full epoch metrics add
+validation selection loss and greedy exact reconstruction accuracy.
 
 Create the sweep once:
 
