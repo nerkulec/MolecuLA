@@ -53,7 +53,7 @@ def parse_args() -> argparse.Namespace:
         "--beta-cycle-epochs",
         dest="beta_warmup_epochs",
         type=int,
-        default=10,
+        default=2,
     )
     parser.add_argument("--lr-warmup-steps", type=int, default=1000)
     parser.add_argument("--grad-clip", type=float, required=True)

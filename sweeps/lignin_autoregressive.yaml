@@ -76,7 +76,7 @@ parameters:
   weight-decay:
     value: 0.01
   beta-warmup-epochs:
-    value: 10
+    value: 2
   lr-warmup-steps:
     value: 1000
   grad-clip:

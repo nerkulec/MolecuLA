@@ -43,7 +43,7 @@ LEARNING_RATE = 3e-4
 WEIGHT_DECAY = 1e-2
 MAX_BETA = 0.03
 SELECTION_BETA = 0.03
-BETA_WARMUP_EPOCHS = 10
+BETA_WARMUP_EPOCHS = 2
 LR_WARMUP_STEPS = 1000
 GRAD_CLIP = 1.0
 SEED = 42
@@ -160,6 +160,8 @@ def run_epoch(
     description: str,
     epoch: int,
     batch_callback=None,
+    beta_schedule=None,
+    global_step_start: int = 0,
 ) -> np.ndarray:
     model.train(train)
     sums = np.zeros(7, dtype=np.float64)
@@ -167,6 +169,11 @@ def run_epoch(
     stage_started = time.time()
     progress = tqdm(loader, desc=description, unit="batch", dynamic_ncols=True)
     for batch_number, (x, _) in enumerate(progress, start=1):
+        batch_beta = (
+            beta_schedule(global_step_start + batch_number - 1)
+            if train and beta_schedule is not None
+            else beta
+        )
         # The resident corpus is compact int32; embedding and cross-entropy use
         # int64 only for the current padded batch.
         x = x.to(device=device, dtype=torch.long, non_blocking=True)
@@ -182,7 +189,7 @@ def run_epoch(
                 exact,
                 mu,
                 logvar,
-            ) = objective(model, x, beta)
+            ) = objective(model, x, batch_beta)
         if not torch.isfinite(loss):
             raise FloatingPointError(
                 "Non-finite loss before backward: "
@@ -216,6 +223,7 @@ def run_epoch(
             progress.set_postfix(
                 loss=f"{sums[0] / max(1, sums[6]):.4f}",
                 token_acc=f"{sums[3] / max(1, sums[4]):.3f}",
+                beta=f"{batch_beta:.5f}",
             )
         should_log = (
             batch_callback is not None
@@ -246,7 +254,7 @@ def run_epoch(
                 f"{stage}/running_exact_accuracy": sums[5] / max(1, sums[6]),
                 f"{stage}/processed_rows": int(sums[6]),
                 f"{stage}/rows_per_second": sums[6] / elapsed,
-                "optimization/beta": beta,
+                "optimization/beta": batch_beta,
                 "optimization/learning_rate": optimizer.param_groups[0]["lr"],
                 "latent/mu_mean": float(mu.detach().float().mean()),
                 "latent/mu_std": float(mu.detach().float().std()),
@@ -423,6 +431,12 @@ def train(args: argparse.Namespace, epoch_callback=None, batch_callback=None) ->
 
     best_selection_loss = math.inf
     training_started = time.time()
+    global_train_step = 0
+    beta_warmup_steps = max(1, args.beta_warmup_epochs * len(train_loader))
+
+    def beta_for_step(step: int) -> float:
+        return args.max_beta * min(1.0, (step + 1) / beta_warmup_steps)
+
     deadline = (
         training_started + args.max_wall_clock_hours * 3600
         if args.max_wall_clock_hours is not None
@@ -431,10 +445,9 @@ def train(args: argparse.Namespace, epoch_callback=None, batch_callback=None) ->
     for epoch in range(args.epochs):
         started = time.time()
         train_sampler.set_epoch(epoch)
-        # Monotonic, nonzero warmup. With millions of rows per epoch, holding
-        # beta at zero for epoch 0 permits tens of thousands of unconstrained
-        # posterior updates and can make exp(logvar) overflow.
-        beta = args.max_beta * min(1.0, (epoch + 1) / args.beta_warmup_epochs)
+        # Increase beta smoothly on every optimizer update, reaching max_beta
+        # after the configured number of complete passes through the train split.
+        beta = beta_for_step(global_train_step)
         train_sums = run_epoch(
             args,
             model,
@@ -448,7 +461,11 @@ def train(args: argparse.Namespace, epoch_callback=None, batch_callback=None) ->
             f"epoch {epoch + 1}/{args.epochs} train",
             epoch,
             batch_callback,
+            beta_for_step,
+            global_train_step,
         )
+        global_train_step += len(train_loader)
+        beta = beta_for_step(global_train_step - 1)
         val_sums = run_epoch(
             args,
             model,

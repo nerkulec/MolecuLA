@@ -157,10 +157,11 @@ validation selection loss and greedy exact reconstruction accuracy.
 For numerical stability, latent variance aggregation and KL are evaluated in
 FP32, log-variance is constrained to `[-12, 6]`, gradients are clipped at norm
 1.0 with non-finite gradients treated as errors, and the learning rate warms up
-over 1,000 optimizer steps. KL beta increases monotonically from 10% of its
-configured maximum in epoch one to its maximum in epoch ten; it no longer spends
-an entire full-data epoch at zero or resets cyclically. The sweep learning-rate
-range is `3e-5` to `3e-4`.
+over 1,000 optimizer steps. KL beta increases linearly on every training batch
+and reaches its configured maximum after exactly two complete passes through the
+training split; it no longer spends an entire full-data epoch at zero, jumps only
+at epoch boundaries, or resets cyclically. The sweep learning-rate range is
+`3e-5` to `3e-4`.
 
 Create the sweep once:
 
