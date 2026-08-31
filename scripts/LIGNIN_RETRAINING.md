@@ -56,6 +56,16 @@ size, canonicalizes 100,000-row shards, builds the shared vocabulary, and encode
 packed shards. Completed canonicalization shards and tokenizer-matched encoded
 shards are skipped when the job is restarted.
 
+`prepare_data.sh` is a cooperative shared-filesystem queue. The same command may
+be started repeatedly on different nodes at any time. Each local process claims
+an unprocessed shard with an atomic directory, refreshes a heartbeat while it is
+working, and publishes its completion marker only after successful output. Other
+nodes immediately take the next unclaimed shards. Claims left by terminated nodes
+are reclaimed after 30 minutes by default (`CLAIM_STALE_SECONDS` controls this).
+Every node shows one tqdm bar for total dataset progress, not merely its local
+share. Detailed worker output remains in each shard's `preprocess.log` or
+`encode.log`.
+
 The database is stored as two Git LFS chunks because GitHub rejects individual
 LFS objects larger than 2 GiB. `prepare_data.sh` automatically reconstructs the
 ignored `data/lignin_solubility.db` and verifies its SHA-256 before reading it.
@@ -64,6 +74,26 @@ It can also be assembled explicitly with `bash assemble_lignin_database.sh`.
 ```bash
 rung --project molecula bash prepare_data.sh
 ```
+
+Additional nodes can join the same output queue without special coordination:
+
+```bash
+# Start these now or hours later; allocation size is detected independently.
+rung --project molecula bash prepare_data.sh
+rung_big --project molecula bash prepare_data.sh
+runt_big --project molecula bash prepare_data.sh
+```
+
+The first invocation persists the shard size and split settings under
+`artifacts/lignin_retraining/state/prepare.env`; later invocations adopt them.
+For a fresh output directory intended for hundreds of CPUs, choose more granular
+shards on the first invocation, for example `ROWS_PER_SHARD=10000`. Subsequent
+nodes do not need to repeat this setting. `PREPROCESS_JOBS` and `ENCODE_JOBS`
+default to the CPUs allocated to each node and may be lowered to cap memory use.
+
+If a molecule shard fails, all nodes stop and report its `.failed` marker. Inspect
+the adjacent log, correct the cause, remove that shard's `.failed` marker, and
+restart any number of preparation jobs.
 
 The script defaults to half as many RDKit workers as allocated CPUs and one
 encoding worker per CPU. Override these if memory is limiting:
