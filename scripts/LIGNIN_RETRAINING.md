@@ -200,6 +200,51 @@ it to `latents.npy` only after all shards finish. The final outputs are:
 For new padding-invariant checkpoints, `--padding-mode batch-max` is also safe
 and faster. The exporter rejects that mode for legacy checkpoints.
 
+## Analyze solubility predictability
+
+Run the analysis on the completed, row-ordered latent export. On an H100, CUDA
+accelerates the only large operation: streaming sufficient-statistic matrix
+products over the 37.26-GiB latent matrix. The script never copies the complete
+latent matrix to either host RAM or GPU RAM.
+
+```bash
+python scripts/analyze_lignin_solubility_latents.py \
+  --database data/lignin_solubility.db \
+  --latents-dir artifacts/lignin_retraining/latents/9yibqc0g \
+  --preprocessed-rows artifacts/lignin_retraining/preprocessed/shard_*/rows.csv.gz \
+  --encoded-shards artifacts/lignin_retraining/encoded/shard_* \
+  --output-dir artifacts/lignin_retraining/solubility_analysis/9yibqc0g \
+  --split-modes rowid scaffold \
+  --pca-components 8 64 512 \
+  --batch-size 32768 \
+  --device cuda \
+  --seed 42 \
+  --prediction-sample-size 100000
+```
+
+`rowid` reuses the stable random 80/10/10 split stored in the encoded training
+data. `scaffold` independently makes a deterministic 80/10/10 split from the
+Bemis-Murcko scaffold hashes, so no scaffold appears across its splits. All
+preprocessing, PCA, scaling, confound residualization, and Ridge fitting use
+training data only; validation selects the Ridge alpha from
+`logspace(-3, 3, 13)`, and test data is evaluated once.
+
+The script evaluates the full latent and the leading 8, 64, and 512 PCA
+components. For each representation it reports direct log-solubility R²,
+unconfounded residual-target R², combined confound-plus-latent R², and latent
+probe R² for each of the four sequence confounds. It saves:
+
+- compact `solubility_r2_summary.csv`, comprehensive `probe_metrics.csv`, and
+  the self-contained `analysis_report.json`;
+- fitted PCA transforms and explained-variance tables;
+- fitted confound, raw-target, residual-target, and confound-target Ridge probes;
+- both split assignment arrays;
+- a reproducible 100,000-row prediction sample, PCA scores, and Pearson/Spearman
+  correlation tables for later plotting and report preparation.
+
+Copy the complete output directory back locally; the fitted artifacts are small
+and the sampled tables should be far below one GiB.
+
 Create the sweep once:
 
 ```bash
