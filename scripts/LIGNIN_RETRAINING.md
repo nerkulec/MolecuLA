@@ -261,6 +261,28 @@ Additional agents can join the same sweep independently. Each run stores its
 local checkpoints under `artifacts/lignin_retraining/sweeps/autoregressive/RUN_ID`
 and logs its best checkpoint as a W&B model artifact.
 
+### Compact-latent/deep-encoder sweep
+
+The follow-up sweep targets latent sizes 64, 128, and 256, decoder depths 2 and
+3, and encoder depths 2, 3, 4, 6, 8, 10, and 12. It additionally searches hidden
+width, slot count, batch size, learning rate, and KL ceiling. Trials retain the
+same 36-hour budget and selection metric as the original sweep and are logged in
+the same W&B project for direct comparison:
+
+```bash
+wandb sweep sweeps/lignin_autoregressive_compact_latent.yaml
+```
+
+Test one trial in the current allocation using the sweep path printed above:
+
+```bash
+wandb agent --count 1 ENTITY/molecula-lignin-autoregressive-rosi/SWEEP_ID
+```
+
+Start further agents with the same sweep path. Compact-run checkpoints are kept
+separately under
+`artifacts/lignin_retraining/sweeps/autoregressive_compact/RUN_ID`.
+
 ## Direct local/single-GPU use
 
 The stages are ordinary Python commands. For an existing preprocessed sample:

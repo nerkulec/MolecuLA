@@ -1,0 +1,87 @@
+program: scripts/wandb_run.py
+method: bayes
+metric:
+  name: val/selection_loss
+  goal: minimize
+
+# Keep this in the existing project so compact runs can be compared directly
+# with the 1,024-dimensional sweep and its current best run, 9yibqc0g.
+project: molecula-lignin-autoregressive-rosi
+name: lignin-autoregressive-compact-latent-depth-36h
+command:
+  - ${env}
+  - python
+  - -u
+  - ${program}
+  - ${args}
+
+parameters:
+  # W&B and paths. The logged-in entity/account is used automatically.
+  wandb-project:
+    value: molecula-lignin-autoregressive-rosi
+  wandb-mode:
+    value: online
+  tokenizer:
+    value: artifacts/lignin_retraining/unified_tokenizer.json
+  shard-root:
+    value: artifacts/lignin_retraining/encoded
+  output-root:
+    value: artifacts/lignin_retraining/sweeps/autoregressive_compact
+  log-checkpoint:
+    value: true
+
+  # Equal wall-clock budgets make shallow and deep trials compute-budget
+  # comparisons. The epoch limit is only a safety ceiling.
+  epochs:
+    value: 1000
+  max-wall-clock-hours:
+    value: 36
+  save-every:
+    value: 0
+  log-every-batches:
+    value: 100
+  num-workers:
+    value: 4
+  precision:
+    value: bf16
+  dataset-device:
+    value: cuda
+  seed:
+    value: 42
+
+  # Requested compact bottlenecks and depth ranges.
+  latent-size:
+    values: [64, 128, 256]
+  decoder-layers:
+    values: [2, 3]
+  encoder-layers:
+    values: [2, 3, 4, 6, 8, 10, 12]
+
+  # Additional high-impact architecture and optimization settings.
+  hidden-size:
+    values: [384, 512]
+  num-slots:
+    values: [4, 8, 16]
+  batch-size:
+    values: [64, 128]
+  learning-rate:
+    distribution: log_uniform_values
+    min: 0.00003
+    max: 0.0003
+  max-beta:
+    distribution: log_uniform_values
+    min: 0.0003
+    max: 0.01
+
+  # Fixed stability settings. Every hidden/latent/slot combination above is
+  # divisible and valid with eight attention heads.
+  attn-heads:
+    value: 8
+  weight-decay:
+    value: 0.01
+  beta-warmup-epochs:
+    value: 2
+  lr-warmup-steps:
+    value: 1000
+  grad-clip:
+    value: 1.0
