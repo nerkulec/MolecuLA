@@ -119,7 +119,6 @@ python scripts/train_lignin_vae.py \
   --precision bf16 \
   --max-train-samples 50000 \
   --max-val-samples 5000 \
-  --greedy-val-samples 16 \
   --save-every 0
 ```
 
@@ -132,12 +131,12 @@ By default, all packed token data is loaded into one GPU-resident int32 buffer;
 only the current padded batch is expanded to int64. For the full corpus this
 uses approximately 6.49 GiB (6.89 GB), including global offsets. Use
 `--dataset-device cpu` to retain the memory-mapped CPU loader instead. GPU data
-loading, training, validation, and greedy validation each display a tqdm bar.
+loading, training, and validation each display a tqdm bar.
 
 Each model directory contains `last.pt`, validation-selected `best.pt`, periodic
-epoch checkpoints, `run_config.json`, and append-only `metrics.jsonl`. Validation
-reports teacher-forced token/exact accuracy and a bounded greedy full-sequence
-accuracy; `--greedy-val-samples 0` disables the latter when fast epochs matter.
+epoch checkpoints, `run_config.json`, and append-only `metrics.jsonl`. Training
+and validation report token accuracy and one full-sequence `exact_accuracy`,
+computed in a single teacher-forced decoder pass. Padding positions are ignored.
 
 ## W&B sweep
 
@@ -150,9 +149,9 @@ clock budget. Model selection minimizes
 `val/selection_loss = reconstruction_loss + 0.03 * kl_loss`; the fixed comparison
 weight makes trials with different training KL schedules directly comparable.
 Every 100 batches, W&B receives current and running total/reconstruction/KL
-losses, token and exact accuracy, gradient norm, learning rate, beta, throughput,
-sequence width, and CUDA allocated/reserved/peak memory. Full epoch metrics add
-validation selection loss and greedy exact reconstruction accuracy.
+losses, token accuracy, gradient norm, learning rate, beta, throughput, sequence
+width, and CUDA allocated/reserved/peak memory. Full epoch metrics add one
+`exact_accuracy` per split and validation selection loss.
 
 For numerical stability, latent variance aggregation and KL are evaluated in
 FP32, log-variance is constrained to `[-12, 6]`, gradients are clipped at norm
@@ -162,6 +161,44 @@ and reaches its configured maximum after exactly two complete passes through the
 training split; it no longer spends an entire full-data epoch at zero, jumps only
 at epoch boundaries, or resets cyclically. The sweep learning-rate range is
 `3e-5` to `3e-4`.
+
+Newly trained autoregressive models mask PAD embeddings before convolution and
+use the correct token/head transpose in custom encoder attention. Their encoder
+means are therefore invariant to right-padding width. Legacy checkpoints retain
+their original encoder behavior for strict compatibility.
+
+## Export the best model's latents in database order
+
+The exporter verifies that the encoded shards contain every dense SQLite rowid
+from 1 through 9,766,400, verifies the tokenizer and checkpoint hashes, and
+writes deterministic FP32 encoder means in exactly that order:
+
+```bash
+python scripts/export_lignin_latents.py \
+  --database data/lignin_solubility.db \
+  --checkpoint artifacts/lignin_retraining/sweeps/autoregressive/9yibqc0g/best.pt \
+  --shards artifacts/lignin_retraining/encoded/shard_* \
+  --output-dir artifacts/lignin_retraining/latents/9yibqc0g \
+  --batch-size 512 \
+  --device cuda \
+  --precision bf16 \
+  --padding-mode checkpoint-max
+```
+
+The best checkpoint is legacy, so `checkpoint-max` pads every input to its
+420-token configured width and makes its latent definition independent of batch
+size and batch composition. The exporter is resumable at encoded-shard
+boundaries. It writes `latents.partial.npy` while running and atomically renames
+it to `latents.npy` only after all shards finish. The final outputs are:
+
+- `latents.npy`: `(9_766_400, 1024)` FP32, 37.26 GiB;
+- `rowids.npy`: explicit `1..9_766_400` alignment vector;
+- `manifest.json`: hashes, shape, checkpoint epoch, padding policy, and shard
+  ranges;
+- `export_state.json`: completed-shard state used for automatic restart.
+
+For new padding-invariant checkpoints, `--padding-mode batch-max` is also safe
+and faster. The exporter rejects that mode for legacy checkpoints.
 
 Create the sweep once:
 
@@ -195,5 +232,5 @@ python scripts/train_lignin_vae.py --model autoregressive \
   --tokenizer /tmp/lignin-smoke/tokenizer.json --shards /tmp/lignin-smoke/shard_000 \
   --output-dir /tmp/lignin-smoke/run --epochs 1 --batch-size 4 --num-workers 0 \
   --precision fp32 --max-train-samples 16 --max-val-samples 8 \
-  --greedy-val-samples 2 --save-every 0
+  --save-every 0
 ```

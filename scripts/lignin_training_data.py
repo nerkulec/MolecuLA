@@ -15,12 +15,12 @@ SPLIT_IDS = {"train": 0, "val": 1, "test": 2}
 
 
 class PackedLigninDataset(Dataset):
-    def __init__(self, shard_dirs: list[Path], split: str, limit: int | None = None):
+    def __init__(self, shard_dirs: list[Path], split: str | None, limit: int | None = None):
         self.shards = []
         shard_id_parts = []
         local_id_parts = []
         length_parts = []
-        split_id = SPLIT_IDS[split]
+        split_id = SPLIT_IDS[split] if split is not None else None
         tokenizer_hashes = set()
         for shard_id, directory in enumerate(sorted(shard_dirs)):
             manifest = json.loads((directory / "manifest.json").read_text())
@@ -32,7 +32,12 @@ class PackedLigninDataset(Dataset):
                 "rowids": np.load(directory / "rowids.npy", mmap_mode="r"),
             }
             self.shards.append(shard)
-            local = np.flatnonzero(np.load(directory / "splits.npy", mmap_mode="r") == split_id)
+            if split_id is None:
+                local = np.arange(len(shard["lengths"]), dtype=np.int64)
+            else:
+                local = np.flatnonzero(
+                    np.load(directory / "splits.npy", mmap_mode="r") == split_id
+                )
             shard_id_parts.append(np.full(len(local), shard_id, dtype=np.uint16))
             local_id_parts.append(local.astype(np.int32, copy=False))
             length_parts.append(np.asarray(shard["lengths"][local], dtype=np.int32))
@@ -113,6 +118,12 @@ class GpuPackedLigninDataset:
 
     def split(self, name: str, limit: int | None = None):
         indexes = np.flatnonzero(self.splits == SPLIT_IDS[name])
+        if limit is not None:
+            indexes = indexes[:limit]
+        return GpuPackedSplit(self, indexes)
+
+    def all(self, limit: int | None = None):
+        indexes = np.arange(len(self.lengths), dtype=np.int64)
         if limit is not None:
             indexes = indexes[:limit]
         return GpuPackedSplit(self, indexes)

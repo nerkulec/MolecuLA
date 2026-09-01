@@ -33,8 +33,6 @@ parameters:
     value: 1000
   max-wall-clock-hours:
     value: 36
-  greedy-val-samples:
-    value: 32
   save-every:
     value: 0
   log-every-batches:

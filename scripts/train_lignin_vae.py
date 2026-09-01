@@ -38,6 +38,7 @@ MODEL_CONFIG = {
     "num_slots": 8,
     "encoder_layers": 3,
     "decoder_layers": 2,
+    "padding_invariant_encoder": True,
 }
 LEARNING_RATE = 3e-4
 WEIGHT_DECAY = 1e-2
@@ -65,7 +66,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-train-samples", type=int)
     parser.add_argument("--max-val-samples", type=int)
     parser.add_argument("--max-wall-clock-hours", type=float)
-    parser.add_argument("--greedy-val-samples", type=int, required=True)
     parser.add_argument("--save-every", type=int, required=True)
     parser.add_argument("--log-every-batches", type=int, default=100)
     parser.add_argument("--hidden-size", type=int, default=MODEL_CONFIG["hidden_size"])
@@ -105,8 +105,6 @@ def validate_args(args: argparse.Namespace) -> argparse.Namespace:
         raise ValueError("--batch-size must be at least 1")
     if args.num_workers < 0:
         raise ValueError("--num-workers cannot be negative")
-    if args.greedy_val_samples < 0:
-        raise ValueError("--greedy-val-samples cannot be negative")
     if args.log_every_batches < 1:
         raise ValueError("--log-every-batches must be at least 1")
     if args.max_wall_clock_hours is not None and args.max_wall_clock_hours <= 0:
@@ -143,8 +141,20 @@ def objective(model: VaeTransformer, x: torch.Tensor, beta: float):
     predicted = logits.argmax(-1)
     mask = targets.ne(0)
     token_correct = (predicted.eq(targets) & mask).sum()
-    exact = (predicted.eq(targets) | ~mask).all(1).sum()
+    exact = exact_match_categories(predicted, targets).sum()
     return loss, reconstruction, kl, token_correct, mask.sum(), exact, mu, logvar
+
+
+def exact_match_categories(
+    predicted: torch.Tensor, targets: torch.Tensor, pad_id: int = 0
+) -> torch.Tensor:
+    """Return one teacher-forced full-sequence correctness flag per row."""
+    if predicted.shape != targets.shape:
+        raise ValueError(
+            f"Predictions and targets must have the same shape, got "
+            f"{tuple(predicted.shape)} and {tuple(targets.shape)}"
+        )
+    return (predicted.eq(targets) | targets.eq(pad_id)).all(dim=1)
 
 
 def run_epoch(
@@ -246,12 +256,10 @@ def run_epoch(
                 f"{stage}/batch_reconstruction_loss": float(reconstruction.detach()),
                 f"{stage}/batch_kl_loss": float(kl.detach()),
                 f"{stage}/batch_token_accuracy": int(token_correct) / max(1, int(token_total)),
-                f"{stage}/batch_exact_accuracy": int(exact) / max(1, count),
                 f"{stage}/running_loss": sums[0] / max(1, sums[6]),
                 f"{stage}/running_reconstruction_loss": sums[1] / max(1, sums[6]),
                 f"{stage}/running_kl_loss": sums[2] / max(1, sums[6]),
                 f"{stage}/running_token_accuracy": sums[3] / max(1, sums[4]),
-                f"{stage}/running_exact_accuracy": sums[5] / max(1, sums[6]),
                 f"{stage}/processed_rows": int(sums[6]),
                 f"{stage}/rows_per_second": sums[6] / elapsed,
                 "optimization/beta": batch_beta,
@@ -277,44 +285,6 @@ def run_epoch(
     return sums
 
 
-@torch.inference_mode()
-def greedy_exact(
-    model: VaeTransformer,
-    loader,
-    device: torch.device,
-    limit: int,
-    batch_size: int,
-    description: str,
-) -> np.ndarray:
-    if limit == 0:
-        return np.zeros(2, dtype=np.int64)
-    model.eval()
-    correct = total = 0
-    batch_limit = min(len(loader), math.ceil(limit / batch_size))
-    progress = tqdm(
-        loader,
-        total=batch_limit,
-        desc=description,
-        unit="batch",
-        dynamic_ncols=True,
-    )
-    for x, _ in progress:
-        x = x.to(device=device, dtype=torch.long, non_blocking=True)
-        mu, _ = model.encode(x)
-        generated = model.decode(mu, max_len=model.max_len)
-        for target, prediction in zip(x, generated):
-            target = target[target.ne(0)]
-            eos = torch.nonzero(prediction.eq(2), as_tuple=False)
-            if len(eos):
-                prediction = prediction[: int(eos[0]) + 1]
-            correct += int(torch.equal(target, prediction))
-            total += 1
-            if total >= limit:
-                progress.close()
-                return np.array([correct, total])
-    return np.array([correct, total])
-
-
 def metrics(sums: np.ndarray) -> dict:
     rows = max(1, sums[6])
     return {
@@ -322,7 +292,7 @@ def metrics(sums: np.ndarray) -> dict:
         "reconstruction_loss": sums[1] / rows,
         "kl_loss": sums[2] / rows,
         "teacher_forced_token_accuracy": sums[3] / max(1, sums[4]),
-        "teacher_forced_exact_accuracy": sums[5] / rows,
+        "exact_accuracy": sums[5] / rows,
         "rows": int(sums[6]),
     }
 
@@ -386,6 +356,7 @@ def train(args: argparse.Namespace, epoch_callback=None, batch_callback=None) ->
         "num_slots": args.num_slots,
         "encoder_layers": args.encoder_layers,
         "decoder_layers": args.decoder_layers,
+        "padding_invariant_encoder": MODEL_CONFIG["padding_invariant_encoder"],
         "vocab_size": tokenizer["vocab_size"],
         "max_len": tokenizer["max_sequence_length"],
     }
@@ -480,14 +451,6 @@ def train(args: argparse.Namespace, epoch_callback=None, batch_callback=None) ->
             epoch,
             batch_callback,
         )
-        greedy = greedy_exact(
-            model,
-            val_loader,
-            device,
-            args.greedy_val_samples,
-            args.batch_size,
-            f"epoch {epoch + 1}/{args.epochs} greedy val",
-        )
         train_metrics = metrics(train_sums)
         val_metrics = metrics(val_sums)
         record = {
@@ -499,8 +462,6 @@ def train(args: argparse.Namespace, epoch_callback=None, batch_callback=None) ->
                 val_metrics["reconstruction_loss"] + SELECTION_BETA * val_metrics["kl_loss"]
             ),
             "selection_beta": SELECTION_BETA,
-            "val_greedy_exact_accuracy": greedy[0] / max(1, greedy[1]),
-            "val_greedy_rows": int(greedy[1]),
             "elapsed_seconds": time.time() - started,
         }
         is_best = record["val_selection_loss"] < best_selection_loss
