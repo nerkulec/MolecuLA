@@ -1,0 +1,95 @@
+program: scripts/wandb_run.py
+method: bayes
+metric:
+  name: val/selection_loss
+  goal: minimize
+
+# Use the existing project so these runs remain directly comparable with the
+# compact and 1,024-dimensional sweeps.
+project: molecula-lignin-autoregressive-rosi
+name: lignin-autoregressive-large-latent-36h
+command:
+  - ${env}
+  - python
+  - -u
+  - ${program}
+  - ${args}
+
+parameters:
+  # W&B and paths. The logged-in entity/account is used automatically.
+  wandb-project:
+    value: molecula-lignin-autoregressive-rosi
+  wandb-mode:
+    value: online
+  tokenizer:
+    value: artifacts/lignin_retraining/unified_tokenizer.json
+  shard-root:
+    value: artifacts/lignin_retraining/encoded
+  output-root:
+    value: artifacts/lignin_retraining/sweeps/autoregressive_large
+
+  # Large-latent checkpoints can be several GiB because they include optimizer
+  # state. Keep best.pt and last.pt locally, but do not upload every trial as a
+  # W&B artifact. Upload or copy only the selected winners afterward.
+  log-checkpoint:
+    value: false
+
+  # Same compute budget and metric as the earlier sweeps.
+  epochs:
+    value: 1000
+  max-wall-clock-hours:
+    value: 36
+  save-every:
+    value: 0
+  log-every-batches:
+    value: 100
+  num-workers:
+    value: 4
+  precision:
+    value: bf16
+  dataset-device:
+    value: cuda
+  seed:
+    value: 42
+
+  # Requested large bottlenecks.
+  latent-size:
+    values: [2048, 4096, 8192]
+
+  # Retain the depth region that produced all reconstruction winners. Encoder
+  # depths above six were slower and frequently underperformed or collapsed in
+  # the compact sweep.
+  encoder-layers:
+    values: [2, 3, 4, 6]
+  decoder-layers:
+    values: [2, 3]
+
+  # Other high-impact settings. Lower learning rates are included because the
+  # latent-key layer grows quadratically with latent size.
+  hidden-size:
+    values: [384, 512]
+  num-slots:
+    values: [4, 8, 16]
+  batch-size:
+    values: [64, 128]
+  learning-rate:
+    distribution: log_uniform_values
+    min: 0.00002
+    max: 0.00015
+  max-beta:
+    distribution: log_uniform_values
+    min: 0.0003
+    max: 0.01
+
+  # Fixed numerical-stability settings. Every candidate is divisible by every
+  # slot count and hidden sizes are divisible by eight attention heads.
+  attn-heads:
+    value: 8
+  weight-decay:
+    value: 0.01
+  beta-warmup-epochs:
+    value: 2
+  lr-warmup-steps:
+    value: 1000
+  grad-clip:
+    value: 1.0

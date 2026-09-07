@@ -283,6 +283,38 @@ Start further agents with the same sweep path. Compact-run checkpoints are kept
 separately under
 `artifacts/lignin_retraining/sweeps/autoregressive_compact/RUN_ID`.
 
+### Large-latent sweep
+
+The large-latent follow-up tests 2,048, 4,096, and 8,192 dimensions. It retains
+the same 36-hour budget and validation selection metric, while searching encoder
+depths 2/3/4/6, decoder depths 2/3, hidden width, slot count, batch size,
+learning rate, and KL ceiling:
+
+```bash
+wandb sweep sweeps/lignin_autoregressive_large_latent.yaml
+```
+
+Test one trial in an existing H100 allocation:
+
+```bash
+wandb agent --count 1 ENTITY/molecula-lignin-autoregressive-rosi/SWEEP_ID
+```
+
+Additional agents can use the same sweep path. Outputs are isolated under
+`artifacts/lignin_retraining/sweeps/autoregressive_large/RUN_ID`.
+
+The model contains a `latent_size × latent_size` projection, so parameter and
+checkpoint cost grows quadratically. At the largest searched configuration,
+8,192 latent dimensions and six encoder layers produce approximately 245 million
+parameters; model/gradient/Adam state alone is roughly 3.65 GiB before
+activations. Local `best.pt` and `last.pt` are still saved, but automatic W&B
+checkpoint artifact upload is disabled to avoid uploading several GiB per trial.
+Copy or upload only the selected winners.
+
+Full-corpus FP32 latent exports would require approximately 74.5 GiB, 149 GiB,
+and 298 GiB for 2,048, 4,096, and 8,192 dimensions, respectively. Plan downstream
+export storage before evaluating the sweep winners.
+
 ## Export and evaluate the compact-latent winners
 
 The reconstruction-focused checkpoints are run `634itik5` (`best.pt`) for 64
