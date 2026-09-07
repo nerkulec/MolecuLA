@@ -283,6 +283,58 @@ Start further agents with the same sweep path. Compact-run checkpoints are kept
 separately under
 `artifacts/lignin_retraining/sweeps/autoregressive_compact/RUN_ID`.
 
+## Export and evaluate the compact-latent winners
+
+The reconstruction-focused checkpoints are run `634itik5` (`best.pt`) for 64
+dimensions, run `3bv5lnom` (`best.pt`) for 128 dimensions, and run `17nxcyq1`
+(`last.pt`, epoch 38) for 256 dimensions. The last checkpoint is intentional for
+the 256-dimensional model: its retained final epoch has lower reconstruction
+loss than its composite-loss-selected `best.pt`.
+
+Run the three row-aligned latent exports sequentially on a GPU node:
+
+```bash
+bash scripts/export_compact_lignin_latents.sh
+```
+
+The exporter uses fast `batch-max` padding because all three new checkpoints are
+padding invariant. It is safe to restart: completed exports are verified and
+skipped, while partial exports resume at encoded-shard boundaries. The FP32
+latent matrices require 2.33 GiB, 4.66 GiB, and 9.31 GiB respectively (16.30 GiB
+total), excluding the small rowid and manifest files.
+
+After all exports complete, run the solubility probes and cross-model comparison:
+
+```bash
+bash scripts/analyze_compact_lignin_solubility.sh
+```
+
+Each model receives the full raw/confound-residualized analysis under both rowid
+and scaffold splits. Common PCA-8 and PCA-64 probes are fitted for all three;
+PCA-128 and PCA-256 are additionally fitted where the latent width permits. The
+last command combines the outputs into:
+
+```text
+artifacts/lignin_retraining/solubility_analysis/compact/comparison/
+  comparison_report.json
+  model_checkpoints.csv
+  full_latent_test_r2.csv
+  solubility_r2_comparison.csv
+  probe_metrics_comparison.csv
+  pca_variance_comparison.csv
+```
+
+Both expensive stages should run on the cluster. Export requires neural-network
+inference over 9.77 million molecules and benefits strongly from the H100. Probe
+fitting streams billions of covariance operations; it is possible on a laptop
+with enough RAM and the copied latent files, but substantially slower and would
+require transferring more than 16 GiB of latents plus source metadata.
+
+Only the compact `solubility_analysis/compact` directory needs to be copied back
+locally. Combining already-generated result tables, plotting, and report writing
+are lightweight laptop tasks. The comparison can be regenerated locally with
+explicit paths using `scripts/compare_compact_lignin_solubility.py` if needed.
+
 ## Direct local/single-GPU use
 
 The stages are ordinary Python commands. For an existing preprocessed sample:

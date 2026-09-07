@@ -90,6 +90,13 @@ class ExportLigninLatentsTest(unittest.TestCase):
                     "model": model.state_dict(),
                     "tokenizer_sha256": tokenizer_hash,
                     "epoch": 3,
+                    "record": {
+                        "epoch": 3,
+                        "val": {
+                            "reconstruction_loss": 0.012,
+                            "exact_accuracy": 0.75,
+                        },
+                    },
                 },
                 checkpoint,
             )
@@ -132,6 +139,10 @@ class ExportLigninLatentsTest(unittest.TestCase):
             self.assertEqual(manifest["shape"], [5, 16])
             self.assertEqual(manifest["padding_width"], 8)
             self.assertTrue(manifest["complete"])
+            self.assertEqual(
+                manifest["checkpoint_record"]["val"]["reconstruction_loss"],
+                0.012,
+            )
 
 
 if __name__ == "__main__":

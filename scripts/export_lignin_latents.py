@@ -198,6 +198,7 @@ def main(argv: list[str] | None = None) -> int:
         "checkpoint": str(args.checkpoint),
         "checkpoint_sha256": checkpoint_sha256,
         "checkpoint_epoch": int(checkpoint.get("epoch", -1)),
+        "checkpoint_record": checkpoint.get("record"),
         "tokenizer_sha256": shard_tokenizer,
         "latent_dim": latent_dim,
         "dtype": "float32",
